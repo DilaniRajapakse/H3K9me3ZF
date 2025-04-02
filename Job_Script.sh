@@ -23,7 +23,7 @@ then
 fi
 
 BASEDIR="/home/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
-module load STAR/2.7.2b-GCC-8.3.0
+ml STAR
 
 for file in $BASEDIR/*_R*.fastq.gz;
 do
