@@ -36,3 +36,5 @@ do
         prefix=${file%%_*}
     fi
 done
+
+#Need to validate input files. Job script calls PE_trim_and_star, and Script is reading through files but is not making files 
