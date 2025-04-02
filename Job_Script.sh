@@ -15,3 +15,24 @@ if [ ! -d $OUTDIR ]
 then
     mkdir -p $OUTDIR
 fi
+
+HOMEDIR="/home/dr27977/H3K9me3ZF"
+if [ ! -d $HOMEDIR ]
+then
+    mkdir -p $HOMEDIR
+fi
+
+BASEDIR="/home/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
+module load STAR/2.7.2b-GCC-8.3.0
+
+for file in $BASEDIR/*_R*.fastq.gz;
+do
+  if [[ $prefix ]]; then
+        base=$(basename ${first} _R1.fastq.gz)
+        sh $HOMEDIR/PE_trim_and_star.sh -o $BASEDIR -n $base -m one $first $file
+        prefix=
+    else
+        first=$file
+        prefix=${file%%_*}
+    fi
+done
