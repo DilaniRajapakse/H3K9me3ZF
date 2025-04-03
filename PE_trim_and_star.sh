@@ -110,7 +110,7 @@ fi
 
 echo "Trimmed reads and fastQC files going into $OUTDIR/trimmed"
 echo "... loading TrimGalore"
-module load Trim_Galore/0.6.5-GCCcore-8.3.0-Java-11-Python-3.7.4
+module load Trim_Galore/0.6.7-GCCcore-11.2.0
 echo "...starting trimming"
 
 trim_galore --fastqc -j 24 --output_dir $OUTDIR/trimmed --paired $read_file1 $read_file2
@@ -118,7 +118,7 @@ trim_galore --fastqc -j 24 --output_dir $OUTDIR/trimmed --paired $read_file1 $re
 echo "... trimming complete"
 echo "...loading MultiQC"
 ###need to edit this to only happen when the # of trimmed files = the number of input files?
-module load MultiQC/1.8-foss-2019b-Python-3.7.4
+module load  MultiQC/1.14-foss-2022a
 echo "... running MultiQC"
 multiqc -o $OUTDIR/trimmed -f $OUTDIR/trimmed
 echo "... QC analysis complete"
@@ -158,7 +158,7 @@ fi
 
 echo "Alignment files going into $OUTDIR/bams"
 echo "... loading STAR"
-module load STAR/2.7.2b-GCC-8.3.0
+module load STAR/2.7.11a-GCC-12.3.0
 
 if [ -f "$OUTDIR/genome/Genome" ]
 then
@@ -212,7 +212,7 @@ else
 fi
 
 echo "... loading SAMtools"
-module load SAMtools/1.10-iccifort-2019.5.281
+module load SAMtools/1.18-GCC-12.3.0
 echo "... performing a MAPQ filter of 1"
 
 for file in $OUTDIR/bams/"$outname"*sortedByCoord.out.bam
