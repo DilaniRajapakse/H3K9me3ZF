@@ -25,16 +25,36 @@ fi
 BASEDIR="/home/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 ml STAR
 
-for file in $BASEDIR/*_R*.fastq.gz;
+#for file in $BASEDIR/*_R*.fastq.gz;
+#do
+#if [[ $prefix ]]; then
+        #base=$(basename ${first} _R1.fastq.gz)
+        #sh $HOMEDIR/PE_trim_and_star.sh -o $BASEDIR -n $base -m one $first $file
+        #prefix=
+    #else
+        #first=$file
+        #prefix=${file%%_*}
+    #fi
+#done
+
+#Files are being made, needed to update all the modules to newer versions. However, the job only ended because time ran out to run it. Increasing time 
+
+
+###aligning to ecoli genome
+curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz | gunzip -c > $BASEDIR/ecoli_refseq.fa
+###note here that STAR suggests SAindex = 10 but that makes the alignment FAIL, do 8 instead
+STAR --runThreadN 20 --genomeSAindexNbases 8 --runMode genomeGenerate --genomeDir $BASEDIR/ecoli_genome --genomeFastaFiles $BASEDIR/ecoli_refseq.fa
+
+for file in $BASEDIR/trimmed/*_val_*.fq.gz;
 do
   if [[ $prefix ]]; then
-        base=$(basename ${first} _R1.fastq.gz)
-        sh $HOMEDIR/PE_trim_and_star.sh -o $BASEDIR -n $base -m one $first $file
+        base=$(basename ${first} _R1_val_1.fq.gz)
+        STAR --runThreadN 20 --genomeDir $BASEDIR/ecoli_genome --outFileNamePrefix $BASEDIR/bams/"$base"_ecoli \
+        --readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
+        --outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
         prefix=
     else
         first=$file
         prefix=${file%%_*}
     fi
 done
-
-#Files are being made, needed to update all the modules to newer versions. However, the job only ended because time ran out to run it. Increasing time 
