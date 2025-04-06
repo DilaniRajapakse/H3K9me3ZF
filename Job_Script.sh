@@ -41,20 +41,32 @@ ml STAR
 
 
 ###aligning to ecoli genome
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz | gunzip -c > $BASEDIR/ecoli_refseq.fa
+#curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz | gunzip -c > $BASEDIR/ecoli_refseq.fa
 ###note here that STAR suggests SAindex = 10 but that makes the alignment FAIL, do 8 instead
-STAR --runThreadN 20 --genomeSAindexNbases 8 --runMode genomeGenerate --genomeDir $BASEDIR/ecoli_genome --genomeFastaFiles $BASEDIR/ecoli_refseq.fa
+#STAR --runThreadN 20 --genomeSAindexNbases 8 --runMode genomeGenerate --genomeDir $BASEDIR/ecoli_genome --genomeFastaFiles $BASEDIR/ecoli_refseq.fa
 
-for file in $BASEDIR/trimmed/*_val_*.fq.gz;
+#for file in $BASEDIR/trimmed/*_val_*.fq.gz;
+#do
+  #if [[ $prefix ]]; then
+        #base=$(basename ${first} _R1_val_1.fq.gz)
+        #STAR --runThreadN 20 --genomeDir $BASEDIR/ecoli_genome --outFileNamePrefix $BASEDIR/bams/"$base"_ecoli \
+        #--readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
+        #--outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
+        #prefix=
+    #else
+        #first=$file
+        #prefix=${file%%_*}
+    #fi
+#done
+
+####Remove PCR duplicates
+ml picard/3.2.0-Java-17
+module load SAMtools/1.18-GCC-12.3.0
+
+for infile in $BASEDIR/bams/*q1.bam
 do
-  if [[ $prefix ]]; then
-        base=$(basename ${first} _R1_val_1.fq.gz)
-        STAR --runThreadN 20 --genomeDir $BASEDIR/ecoli_genome --outFileNamePrefix $BASEDIR/bams/"$base"_ecoli \
-        --readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
-        --outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
-        prefix=
-    else
-        first=$file
-        prefix=${file%%_*}
-    fi
+  base=$(basename ${infile} _q1.bam)
+  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
 done
+
+ 
