@@ -69,13 +69,13 @@ done
 
 
 ####Remove PCR duplicates
-#ml picard/3.2.0-Java-17
-#module load SAMtools/1.18-GCC-12.3.0
+ml picard/3.2.0-Java-17
+module load SAMtools/1.18-GCC-12.3.0
 
-#for infile in $BASEDIR/bams/*q1.bam
-#do
-  #base=$(basename ${infile} _q1.bam)
-  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
-#done
+for infile in $BASEDIR/bams/*q1.bam
+do
+  base=$(basename ${infile} _q1.bam)
+  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
+done
 
  
