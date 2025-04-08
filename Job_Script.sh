@@ -9,7 +9,7 @@
 #SBATCH --mail-user=dr27977@uga.edu                    # Where to send mail 
 #SBATCH --mail-type=BEGIN,END,FAIL,ALL                            # Mail events (BEGIN, END, FAIL, ALL)
 
-OUTDIR="/scratch/dr27977/H3K9me3_ZF" 
+OUTDIR="/home/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam" 
 #if output directory doesn't exist, create it
 if [ ! -d $OUTDIR ]
 then
@@ -59,14 +59,23 @@ ml STAR
     #fi
 #done
 
-####Remove PCR duplicates
-ml picard/3.2.0-Java-17
-module load SAMtools/1.18-GCC-12.3.0
+module load SAMtools
 
-for infile in $BASEDIR/bams/*q1.bam
+for file in $OUTDIR/bams/"$base"*ecoliAligned.sortedByCoord.out.bam
 do
-  base=$(basename ${infile} _q1.bam)
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
+  base=$(basename ${file} ecoliAligned.sortedByCoord.out.bam)
+  samtools view -bq1 $file | samtools sort - > $OUTDIR/bams/"$base"_ecoli_q1.bam
 done
+
+
+####Remove PCR duplicates
+#ml picard/3.2.0-Java-17
+#module load SAMtools/1.18-GCC-12.3.0
+
+#for infile in $BASEDIR/bams/*q1.bam
+#do
+  #base=$(basename ${infile} _q1.bam)
+  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
+#done
 
  
