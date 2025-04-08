@@ -67,15 +67,31 @@ do
   samtools view -bq1 $file | samtools sort - > $OUTDIR/bams/"$base"_ecoli_q1.bam
 done
 
+for infile in $OUTDIR/bams/"$base"*_ecoli_q1.bam
+do
+ base=$(basename ${infile} _ecoli_q1.bam)
+ echo "$base total aligned reads -" >> $OUTDIR/bams/bam_stats.txt
+ samtools view -@ 24 -F 0x4 $OUTDIR/bams/"$base"ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+ echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
+ samtools view -@ 24 -F 0x4 $OUTDIR/bams/"$base"ecoliAligned.sortedByCoord.out.bam | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+ echo "  $base total aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
+ samtools view -@ 24 -F 0x4 $OUTDIR/bams/"$base"ecoliAligned.sortedByCoord.out.bam | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+ echo "$base q1 aligned reads -" >> $OUTDIR/bams/bam_stats.txt
+ samtools view -@ 24 -F 0x4 $infile | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+ echo "  $base q1 aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
+ samtools view -@ 24 -F 0x4 $infile | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+ echo "  $base q1 aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
+ samtools view -@ 24 -F 0x4 $infile | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+ done
 
 ####Remove PCR duplicates
-ml picard/3.2.0-Java-17
-module load SAMtools/1.18-GCC-12.3.0
+#ml picard/3.2.0-Java-17
+#module load SAMtools/1.18-GCC-12.3.0
 
-for infile in $BASEDIR/bams/*q1.bam
-do
-  base=$(basename ${infile} _q1.bam)
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
-done
+#for infile in $BASEDIR/bams/*q1.bam
+#do
+  #base=$(basename ${infile} _q1.bam)
+  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
+#done
 
  
