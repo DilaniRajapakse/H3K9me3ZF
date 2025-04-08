@@ -59,7 +59,7 @@ ml STAR
     #fi
 #done
 
-module load SAMtools
+module load SAMtools/1.18-GCC-12.3.0 
 
 for file in $OUTDIR/bams/"$base"*ecoliAligned.sortedByCoord.out.bam
 do
