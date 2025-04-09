@@ -45,49 +45,46 @@ ml STAR
 ###note here that STAR suggests SAindex = 10 but that makes the alignment FAIL, do 8 instead
 #STAR --runThreadN 20 --genomeSAindexNbases 8 --runMode genomeGenerate --genomeDir $BASEDIR/ecoli_genome --genomeFastaFiles $BASEDIR/ecoli_refseq.fa
 
-for file in $BASEDIR/trimmed/*_val_*.fq.gz;
+#for file in $BASEDIR/trimmed/*_val_*.fq.gz;
+#do
+  #if [[ $prefix ]]; then
+        #base=$(basename ${first} _R1_val_1.fq.gz)
+        #STAR --runThreadN 20 --genomeDir $BASEDIR/ecoli_genome --outFileNamePrefix $BASEDIR/bams2/"$base"_ecoli \
+        #--readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
+        #--outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
+        #prefix=
+    #else
+        #first=$file
+        #prefix=${file%%_*}
+    #fi
+#done
+
+ 
+for file in $OUTDIR/trimmed/*_val_*.fq.gz;
 do
-  if [[ $prefix ]]; then
+if [[ $prefix ]]; then
         base=$(basename ${first} _R1_val_1.fq.gz)
-        STAR --runThreadN 20 --genomeDir $BASEDIR/ecoli_genome --outFileNamePrefix $BASEDIR/bams2/"$base"_ecoli \
+        STAR --runThreadN 20 --genomeDir $OUTDIR/ecoli_genome --outFileNamePrefix $OUTDIR/bams2/"$base"_ecoli \
         --readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
         --outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
+
+        STAR --runThreadN 20 --genomeDir $OUTDIR/genome --outFileNamePrefix $OUTDIR/bams2/"$base"_ecoli \
+        --readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
+        --outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
+
+        STAR --runThreadN 20 --genomeDir $OUTDIR/genome --outFileNamePrefix $OUTDIR/bams2/"$base"_ecoli \
+        --readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
+        --outMultimapperOrder Random --outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
+
+        STAR --runThreadN 20 --genomeDir $OUTDIR/genome --outFileNamePrefix $OUTDIR/bams2/"$base"_ecoli \
+        --readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
+        --outSAMprimaryFlag AllBestScore --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
         prefix=
-    else
-        first=$file
-        prefix=${file%%_*}
-    fi
-done
-
- ##aligning to ecoli genome
-#curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz | gunzip -c > $OUTDIR/ecoli_refseq.fa
-# # note here that STAR suggests SAindex = 10 but that makes the alignment FAIL, do 8 instead
-#STAR --runThreadN 20 --genomeSAindexNbases 8 --runMode genomeGenerate --genomeDir $OUTDIR/ecoli_genome --genomeFastaFiles $OUTDIR/ecoli_refseq.fa
-#for file in $OUTDIR/trimmed/*_val_*.fq.gz;
-#do
-#if [[ $prefix ]]; then
-        #base=$(basename ${first} _R1_val_1.fq.gz)
-        #STAR --runThreadN 20 --genomeDir $OUTDIR/ecoli_genome --outFileNamePrefix $OUTDIR/bams/"$base"_ecoli \
-        #--readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
-        #--outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
-
-        #STAR --runThreadN 20 --genomeDir $OUTDIR/genome --outFileNamePrefix $OUTDIR/bams/"$base"_ecoli \
-        #--readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
-        #--outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
-
-        #STAR --runThreadN 20 --genomeDir $OUTDIR/genome --outFileNamePrefix $OUTDIR/bams/"$base"_ecoli \
-        #--readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
-        #--outMultimapperOrder Random --outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
-
-        #STAR --runThreadN 20 --genomeDir $OUTDIR/genome --outFileNamePrefix $OUTDIR/bams/"$base"_ecoli \
-        #--readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
-        #--outSAMprimaryFlag AllBestScore --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
-        #prefix=
-        #else
-          #first=$file
-          #prefix=${file%%_*}
-       #fi
-       #done
+        else
+          first=$file
+          prefix=${file%%_*}
+       fi
+       done
 
 #module load SAMtools/1.18-GCC-12.3.0 
 
