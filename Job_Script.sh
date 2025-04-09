@@ -45,19 +45,19 @@ ml STAR
 ###note here that STAR suggests SAindex = 10 but that makes the alignment FAIL, do 8 instead
 #STAR --runThreadN 20 --genomeSAindexNbases 8 --runMode genomeGenerate --genomeDir $BASEDIR/ecoli_genome --genomeFastaFiles $BASEDIR/ecoli_refseq.fa
 
-#for file in $BASEDIR/trimmed/*_val_*.fq.gz;
-#do
-  #if [[ $prefix ]]; then
-        #base=$(basename ${first} _R1_val_1.fq.gz)
-        #STAR --runThreadN 20 --genomeDir $BASEDIR/ecoli_genome --outFileNamePrefix $BASEDIR/bams/"$base"_ecoli \
-        #--readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
-        #--outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
-        #prefix=
-    #else
-        #first=$file
-        #prefix=${file%%_*}
-    #fi
-#done
+for file in $BASEDIR/trimmed/*_val_*.fq.gz;
+do
+  if [[ $prefix ]]; then
+        base=$(basename ${first} _R1_val_1.fq.gz)
+        STAR --runThreadN 20 --genomeDir $BASEDIR/ecoli_genome --outFileNamePrefix $BASEDIR/bams2/"$base"_ecoli \
+        --readFilesCommand zcat --readFilesIn "$first" "$file" --outSAMtype BAM SortedByCoordinate \
+        --outSAMmultNmax 1 --alignEndsType EndToEnd --alignIntronMax 1 --alignMatesGapMax 2000
+        prefix=
+    else
+        first=$file
+        prefix=${file%%_*}
+    fi
+done
 
  ##aligning to ecoli genome
 #curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz | gunzip -c > $OUTDIR/ecoli_refseq.fa
@@ -115,17 +115,17 @@ ml STAR
  #done
 
 ####Remove PCR duplicates
-ml picard/3.2.0-Java-17
-module load SAMtools/1.18-GCC-12.3.0
+#ml picard/3.2.0-Java-17
+#module load SAMtools/1.18-GCC-12.3.0
 
-#Check to see if read group information is present in a file
-samtools view -H $BASEDIR/bams/K9abcam_4.5hpf_3_ecoliAligned.sortedByCoord.out.bam | grep '@RG' >> $BASEDIR/bams/read_groups.txt
+#Check to see if read group information is present in a file. No read groups made
+#samtools view -H $BASEDIR/bams/K9abcam_4.5hpf_3_ecoliAligned.sortedByCoord.out.bam | grep '@RG' >> $BASEDIR/bams/read_groups.txt
 
 
-for infile in $BASEDIR/bams/*ecoliAligned.sortedByCoord.out.bam
-do
-  base=$(basename ${infile} _ecoliAligned.sortedByCoord.out.bam)
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
-done
+#for infile in $BASEDIR/bams/*ecoliAligned.sortedByCoord.out.bam
+#do
+  #base=$(basename ${infile} _ecoliAligned.sortedByCoord.out.bam)
+  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
+#done
 
  
