@@ -118,6 +118,10 @@ ml STAR
 ml picard/3.2.0-Java-17
 module load SAMtools/1.18-GCC-12.3.0
 
+#Check to see if read group information is present in a file
+samtools view -H $BASEDIR/bams/K9abcam_4.5hpf_3_ecoliAligned.sortedByCoord.out.bam | grep '@RG' >> $BASEDIR/bams/read_groups.txt
+
+
 for infile in $BASEDIR/bams/*ecoliAligned.sortedByCoord.out.bam
 do
   base=$(basename ${infile} _ecoliAligned.sortedByCoord.out.bam)
