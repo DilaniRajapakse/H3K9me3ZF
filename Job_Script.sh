@@ -87,53 +87,54 @@ ml STAR
        #fi
        #done
 #Begin 4.9.25
-rm $OUTDIR/bams2/"$base"*SJ.out.tab
+#rm $OUTDIR/bams2/"$base"*SJ.out.tab
 
- if [ -d "$OUTDIR/bams2/logs" ]
- then
-     mv $OUTDIR/bams2/*Log* $OUTDIR/bams2/logs
- else
-   mkdir $OUTDIR/bams2/logs
-   mv $OUTDIR/bams2/*Log* $OUTDIR/bams2/logs
- fi
+ #if [ -d "$OUTDIR/bams2/logs" ]
+ #then
+     #mv $OUTDIR/bams2/*Log* $OUTDIR/bams2/logs
+ #else
+   #mkdir $OUTDIR/bams2/logs
+   #mv $OUTDIR/bams2/*Log* $OUTDIR/bams2/logs
+ #fi
 
-module load SAMtools/1.18-GCC-12.3.0 
+#module load SAMtools/1.18-GCC-12.3.0 
 
-for file in $OUTDIR/bams2/"$base"*ecoliAligned.sortedByCoord.out.bam
-do
-  base=$(basename ${file} ecoliAligned.sortedByCoord.out.bam)
-  samtools view -bq1 $file | samtools sort - > $OUTDIR/bams2/"$base"_ecoli_q1.bam
-done
+#for file in $OUTDIR/bams2/"$base"*ecoliAligned.sortedByCoord.out.bam
+#do
+  #base=$(basename ${file} ecoliAligned.sortedByCoord.out.bam)
+  #samtools view -bq1 $file | samtools sort - > $OUTDIR/bams2/"$base"_ecoli_q1.bam
+#done
 
-for infile in $OUTDIR/bams2/"$base"*_ecoli_q1.bam
-do
- base=$(basename ${infile} _ecoli_q1.bam)
- echo "$base total aligned reads -" >> $OUTDIR/bams2/bam_stats.txt
- samtools view -@ 24 -F 0x4 $OUTDIR/bams2/"$base"ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
- echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams2/bam_stats.txt
- samtools view -@ 24 -F 0x4 $OUTDIR/bams2/"$base"ecoliAligned.sortedByCoord.out.bam | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
- echo "  $base total aligned reads (multi mappers) -" >> $OUTDIR/bams2/bam_stats.txt
- samtools view -@ 24 -F 0x4 $OUTDIR/bams2/"$base"ecoliAligned.sortedByCoord.out.bam | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
- echo "$base q1 aligned reads -" >> $OUTDIR/bams2/bam_stats.txt
- samtools view -@ 24 -F 0x4 $infile | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
- echo "  $base q1 aligned reads (unique mappers) -" >> $OUTDIR/bams2/bam_stats.txt
- samtools view -@ 24 -F 0x4 $infile | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
- echo "  $base q1 aligned reads (multi mappers) -" >> $OUTDIR/bams2/bam_stats.txt
- samtools view -@ 24 -F 0x4 $infile | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
- done
+#for infile in $OUTDIR/bams2/"$base"*_ecoli_q1.bam
+#do
+ #base=$(basename ${infile} _ecoli_q1.bam)
+ #echo "$base total aligned reads -" >> $OUTDIR/bams2/bam_stats.txt
+ #samtools view -@ 24 -F 0x4 $OUTDIR/bams2/"$base"ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
+ #echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams2/bam_stats.txt
+ #samtools view -@ 24 -F 0x4 $OUTDIR/bams2/"$base"ecoliAligned.sortedByCoord.out.bam | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
+ #echo "  $base total aligned reads (multi mappers) -" >> $OUTDIR/bams2/bam_stats.txt
+ #samtools view -@ 24 -F 0x4 $OUTDIR/bams2/"$base"ecoliAligned.sortedByCoord.out.bam | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
+ #echo "$base q1 aligned reads -" >> $OUTDIR/bams2/bam_stats.txt
+ #samtools view -@ 24 -F 0x4 $infile | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
+ #echo "  $base q1 aligned reads (unique mappers) -" >> $OUTDIR/bams2/bam_stats.txt
+ #samtools view -@ 24 -F 0x4 $infile | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
+ #echo "  $base q1 aligned reads (multi mappers) -" >> $OUTDIR/bams2/bam_stats.txt
+ #samtools view -@ 24 -F 0x4 $infile | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams2/bam_stats.txt
+ #done
 
+#Begin 4.10.25
 ####Remove PCR duplicates
-#ml picard/3.2.0-Java-17
-#module load SAMtools/1.18-GCC-12.3.0
+ml picard/3.2.0-Java-17
+module load SAMtools/1.18-GCC-12.3.0
 
 #Check to see if read group information is present in a file. No read groups made
 #samtools view -H $BASEDIR/bams/K9abcam_4.5hpf_3_ecoliAligned.sortedByCoord.out.bam | grep '@RG' >> $BASEDIR/bams/read_groups.txt
 
 
-#for infile in $BASEDIR/bams/*ecoliAligned.sortedByCoord.out.bam
-#do
-  #base=$(basename ${infile} _ecoliAligned.sortedByCoord.out.bam)
-  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
-#done
+for infile in $BASEDIR/bams/*ecoliAligned.sortedByCoord.out.bam
+do
+  base=$(basename ${infile} _ecoliAligned.sortedByCoord.out.bam)
+  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams/"$base"_dupmetrics.txt -O $BASEDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
+done
 
  
