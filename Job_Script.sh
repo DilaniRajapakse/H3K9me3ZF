@@ -4,17 +4,18 @@
 #SBATCH --ntasks=1		                            # Single task job
 #SBATCH --cpus-per-task=24		                        # Number of cores per task - match this to the num_threads used by BLAST
 #SBATCH --mem=120gb			                            # Total memory for job
-#SBATCH --time=50:00:00  		                        # Time limit hrs:min:sec
-#SBATCH --output=/home/dr27977/H3K9me3ZF/log.%j				# Location of standard output and error log files 
+#SBATCH --time=50:00:00  		                       # Time limit hrs:min:sec
+#SBATCH --output=/scratch/dr27977/log.%j				# Location of standard output and error log files 
 #SBATCH --mail-user=dr27977@uga.edu                    # Where to send mail 
 #SBATCH --mail-type=BEGIN,END,FAIL,ALL                            # Mail events (BEGIN, END, FAIL, ALL)
 
-OUTDIR="/home/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam" 
+OUTDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam" 
 #if output directory doesn't exist, create it
 if [ ! -d $OUTDIR ]
 then
     mkdir -p $OUTDIR
 fi
+cd $OUTDIR
 
 HOMEDIR="/home/dr27977/H3K9me3ZF"
 if [ ! -d $HOMEDIR ]
@@ -22,7 +23,7 @@ then
     mkdir -p $HOMEDIR
 fi
 
-BASEDIR="/home/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
+BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 ml STAR
 
 #for file in $BASEDIR/*_R*.fastq.gz;
