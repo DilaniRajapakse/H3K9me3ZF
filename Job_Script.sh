@@ -124,7 +124,7 @@ ml STAR
 
 #Begin 4.10.25
 ####Remove PCR duplicates
-ml picard/3.2.0-Java-17
+#ml picard/3.2.0-Java-17
 module load SAMtools/1.18-GCC-12.3.0
 
 #Check to see if read group information is present in a file. No read groups made
