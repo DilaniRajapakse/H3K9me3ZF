@@ -131,9 +131,9 @@ module load SAMtools/1.18-GCC-12.3.0
 #samtools view -H $BASEDIR/bams/K9abcam_4.5hpf_3_ecoliAligned.sortedByCoord.out.bam | grep '@RG' >> $BASEDIR/bams/read_groups.txt
 
 
-for infile in $BASEDIR/bams2/*ecoliAligned.sortedByCoord.out.bam
+for infile in $BASEDIR/bams2/*q1.bam
 do
-  base=$(basename ${infile} _ecoliAligned.sortedByCoord.out.bam)
+  base=$(basename ${infile} _q1.bam)
   java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams2/"$base"_dupmetrics.txt -O $BASEDIR/bams2/"$base"_nodups.bam --REMOVE_DUPLICATES true
 done
 
