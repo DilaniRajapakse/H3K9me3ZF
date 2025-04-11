@@ -130,11 +130,16 @@ module load SAMtools/1.18-GCC-12.3.0
 #Check to see if read group information is present in a file. No read groups made
 #samtools view -H $BASEDIR/bams/K9abcam_4.5hpf_3_ecoliAligned.sortedByCoord.out.bam | grep '@RG' >> $BASEDIR/bams/read_groups.txt
 
-
-for infile in $BASEDIR/bams2/*q1.bam
+for infile in $OUTDIR/bams2/"$base"*_ecoli_q1.bam
 do
-  base=$(basename ${infile} _q1.bam)
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams2/"$base"_dupmetrics.txt -O $BASEDIR/bams2/"$base"_nodups.bam --REMOVE_DUPLICATES true
+  base=$(basename ${infile} _ecoli_q1.bam)
+  samtools view -H $OUTDIR/bams2/"$base"_ecoli_q1.bam | grep '@RG' >> $OUTDIR/bams2/read_groups.txt
 done
+
+#for infile in $BASEDIR/bams2/*q1.bam
+#do
+  #base=$(basename ${infile} _q1.bam)
+  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $BASEDIR/bams2/"$base"_dupmetrics.txt -O $BASEDIR/bams2/"$base"_nodups.bam --REMOVE_DUPLICATES true
+#done
 
  
