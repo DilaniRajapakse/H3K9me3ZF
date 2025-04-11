@@ -133,7 +133,7 @@ module load SAMtools/1.18-GCC-12.3.0
 for infile in $OUTDIR/bams2/"$base"*_ecoli_q1.bam
 do
   base=$(basename ${infile} _ecoli_q1.bam)
-  samtools view -H $OUTDIR/bams2/"$base"_ecoli_q1.bam | grep '@RG' >> $OUTDIR/bams2/read_groups.txt
+  samtools view -H $OUTDIR/bams2/"$base"_ecoli_q1.bam | grep '@RG' >> $OUTDIR/bams2/logs/read_groups.txt
 done
 
 #for infile in $BASEDIR/bams2/*q1.bam
