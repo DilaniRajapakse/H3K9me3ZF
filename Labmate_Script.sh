@@ -43,7 +43,7 @@ do
  # note here that STAR suggests SAindex = 10 but that makes the alignment FAIL, do 8 instead
  STAR --runThreadN 20 --genomeSAindexNbases 8 --runMode genomeGenerate --genomeDir $OUTDIR/ecoli_genome --genomeFastaFiles $OUTDIR/ecoli_refseq.fa
 
- for file in $OUTDIR/trimmed/*_val_*.fq.gz;
+ for file in $OUTDIR/trimmed2/*_val_*.fq.gz;
  do
    if [[ $prefix ]]; then
          base=$(basename ${first} _R1_val_1.fq.gz)

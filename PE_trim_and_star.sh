@@ -10,7 +10,7 @@ Help()
   echo "To use Bowtie2 instead, please use Align and Bowtie"
   echo
   echo "SYNTAX: $0 [options] read_file_1.fq.gz read_file_2.fq.gz"
-  echo
+  ech
   echo "OPTIONS:"
   echo "-o      output directory, required"
   echo "-g      path to reference genome file, optional, default is z11 release 98"
@@ -101,37 +101,37 @@ echo "All data input checks complete."
 echo
 echo "Starting Analysis"
 
-if [ -d "$OUTDIR/trimmed" ]
+if [ -d "$OUTDIR/trimmed2" ]
 then
-    echo "Directory $OUTDIR/trimmed exists."
+    echo "Directory $OUTDIR/trimmed2 exists."
 else
-  mkdir $OUTDIR/trimmed
+  mkdir $OUTDIR/trimmed2
 fi
 
-echo "Trimmed reads and fastQC files going into $OUTDIR/trimmed"
+echo "trimmed2 reads and fastQC files going into $OUTDIR/trimmed2"
 echo "... loading TrimGalore"
 module load Trim_Galore/0.6.7-GCCcore-11.2.0
 echo "...starting trimming"
 
-trim_galore --fastqc -j 24 --output_dir $OUTDIR/trimmed --paired $read_file1 $read_file2
+trim_galore --fastqc -j 24 --output_dir $OUTDIR/trimmed2 --paired $read_file1 $read_file2
 
 echo "... trimming complete"
 echo "...loading MultiQC"
-###need to edit this to only happen when the # of trimmed files = the number of input files?
+###need to edit this to only happen when the # of trimmed2 files = the number of input files?
 module load  MultiQC/1.14-foss-2022a
 echo "... running MultiQC"
-multiqc -o $OUTDIR/trimmed -f $OUTDIR/trimmed
+multiqc -o $OUTDIR/trimmed2 -f $OUTDIR/trimmed2
 echo "... QC analysis complete"
 
 echo
-echo "... counting trimmed reads"
-for infile in $OUTDIR/trimmed/"$outname"*R1*val*.fq.gz
+echo "... counting trimmed2 reads"
+for infile in $OUTDIR/trimmed2/"$outname"*R1*val*.fq.gz
 do
   base=$(basename ${infile} _val_1.fq.gz)
-  echo $base >> $OUTDIR/trimmed/trimmed_read_stats.txt
-  echo $(zcat $infile |wc -l)/4|bc >> $OUTDIR/trimmed/trimmed_read_stats.txt
+  echo $base >> $OUTDIR/trimmed2/trimmed2_read_stats.txt
+  echo $(zcat $infile |wc -l)/4|bc >> $OUTDIR/trimmed2/trimmed2_read_stats.txt
 done
-echo "... trimmed reads counted and reported in $OUTDIR/trimmed/trimmed_read_stats"
+echo "... trimmed2 reads counted and reported in $OUTDIR/trimmed2/trimmed2_read_stats"
 echo
 
 if [ -f "$genome" ]; then
@@ -171,7 +171,7 @@ else
   echo "... aligning reads to "$genome" genome"
 fi
 
-for file in $OUTDIR/trimmed/"$outname"*_val_*.fq.gz;
+for file in $OUTDIR/trimmed2/"$outname"*_val_*.fq.gz;
 do
   if [[ $prefix ]]; then
     if [ $analysis_mode == 'NONE' ] ; then
