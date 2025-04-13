@@ -30,7 +30,7 @@ for file in $OUTDIR/*_R*.fastq.gz;
 do
    if [[ $prefix ]]; then
          base=$(basename ${first} _R1.fastq.gz)
-         sh /home/dr27977/scripts/PE_trim_and_star.sh -o $OUTDIR -n $base -m one $first $file
+         sh /home/dr27977/H3K9me3ZF/PE_trim_and_star.sh -o $OUTDIR -n $base -m one $first $file
          prefix=
      else
          first=$file
