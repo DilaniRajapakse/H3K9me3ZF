@@ -189,7 +189,7 @@ java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
 # sh /home/dr27977/scripts/DNAspike_in.kd.sh $OUTDIR/bams/4.5hpf_K9_3_nodups.btb.bed $OUTDIR/bams/4.5hpf_K9_3_ecoli.btb.bed 100000 bga $OUTDIR/genome/chrNameLength.txt 1 1000 $OUTDIR/bdgrphs/4.5hpf_K9_3.norm.bga
 #
 # peak calling
-module load Homer/
+#module load Homer/
 # mkdir $OUTDIR/peaks_5
 # #
 # for infile in $OUTDIR/bdgrphs/*.norm.bga
@@ -341,5 +341,5 @@ module load Homer/
 # grep "hox" $OUTDIR/refann.gtf > $OUTDIR/refann_hox.bed
 
 #creating heatmap
-ml deepTools
-computeMatrix scale-regions -S /scratch/dr27977/H3K9me3_rep1.bw /scratch/dr27977/H3K9me3_rep2.bw /scratch/dr27977/H3K27me3_rep1.bw /scratch/dr27977/H3K27me3_rep2.bw -R $OUTDIR/refann_hox.bed -b 10000 -out $OUTDIR/figures/K9_K27_hox_genes.gz
+#ml deepTools
+#computeMatrix scale-regions -S /scratch/dr27977/H3K9me3_rep1.bw /scratch/dr27977/H3K9me3_rep2.bw /scratch/dr27977/H3K27me3_rep1.bw /scratch/dr27977/H3K27me3_rep2.bw -R $OUTDIR/refann_hox.bed -b 10000 -out $OUTDIR/figures/K9_K27_hox_genes.gz
