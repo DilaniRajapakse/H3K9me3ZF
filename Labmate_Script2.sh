@@ -113,7 +113,18 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 #   base=$(basename ${infile} _q1.bam)
 #   java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $OUTDIR/bams/"$base"_dupmetrics.txt -O $OUTDIR/bams/"$base"_nodups.bam --REMOVE_DUPLICATES true
 # done
- java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I /scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam/bams3/test/K9abcam_4.5hpf_3__ecoli_q1.bam -M $OUTDIR/bams3/test/test_dupmetrics.txt -O $OUTDIR/bams3/test/test_nodups.bam --REMOVE_DUPLICATES true
+
+java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
+  I=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam/bams3/test/K9abcam_4.5hpf_3__ecoli_q1.bam \
+  O=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam/bams3/test/K9abcam_4.5hpf_3__ecoli_q1_rg.bam \
+  RGID=1 \
+  RGLB=lib1 \
+  RGPL=ILLUMINA \
+  RGPU=unit1 \
+  RGSM=sample1
+
+
+ java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I /scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam/bams3/test/K9abcam_4.5hpf_3__ecoli_q1_rg.bam -M $OUTDIR/bams3/test/test_dupmetrics.txt -O $OUTDIR/bams3/test/test_nodups.bam --REMOVE_DUPLICATES true
 
 #
 # for infile in $OUTDIR/bams/*_ecoli_q1.bam
