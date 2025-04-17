@@ -87,9 +87,9 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
    samtools view -bq1 $file | samtools sort - > $OUTDIR/bams3/${base}_ecoli_q1.bam
  done
 
- for infile in $OUTDIR/bams3/${base}*_ecoli_q1.bam
- do
-   base=$(basename ${infile} _ecoli_q1.bam)
+ for infile in $OUTDIR/bams3/*_ecoli_q1.bam
+do
+  base=$(basename "$infile" _ecoli_q1.bam)
    echo "$base total aligned reads -" >> $OUTDIR/bams3/bam_stats.txt
    samtools view -@ 24 -F 0x4 $OUTDIR/bams3/${base}ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams3/bam_stats.txt
    echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams3/bam_stats.txt
