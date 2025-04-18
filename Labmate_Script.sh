@@ -106,11 +106,14 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 #
 #
 # ###Remove PCR duplicates
- ml picard
+ml picard
 module load SAMtools
+
 for infile in $OUTDIR/bams3/*_q1.bam
 do
   base=$(basename ${infile} _q1.bam)
+
+  #Add read groups
   java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
     I=$OUTDIR/bams3/${base}_q1.bam \
     O=$OUTDIR/bams3/${base}_q1_rg.bam \
@@ -118,8 +121,14 @@ do
     RGLB=lib1 \
     RGPL=ILLUMINA \
     RGPU=unit1 \
-    RGSM=sample1
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates -I $infile -M $OUTDIR/bams3/${base}_dupmetrics.txt -O $OUTDIR/bams3/${base}_nodups.bam --REMOVE_DUPLICATES true
+    RGSM=${base}
+
+  # Run MarkDuplicates on the BAM with read groups
+  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
+    I=$OUTDIR/bams3/${base}_q1_rg.bam \
+    O=$OUTDIR/bams3/${base}_nodups.bam \
+    M=$OUTDIR/bams3/${base}_dupmetrics.txt \
+    REMOVE_DUPLICATES=true
 done
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
