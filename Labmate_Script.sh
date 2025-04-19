@@ -133,15 +133,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
 module load SAMtools
-for t in 2hpf 2.5hpf 3hpf 3.5hpf 4hpf 4.5hpf 6hpf 24hpf; do
-  infiles=($OUTDIR/bams3/*$t*IgG*ecoli*nodups.bam)
-  if [ ${#infiles[@]} -gt 0 ]; then
-    echo "Merging ${#infiles[@]} files for $t..."
-    samtools merge -f $OUTDIR/bams3/${t}_IgG_ecoli_nodups.bam "${infiles[@]}"
-  else
-    echo "No files found for $t — skipping"
-  fi
-done
+
 
 #4.18.25
 #samtools merge -f $OUTDIR/bams3/2hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2hpf*IgG*ecoli*nodups.bam
