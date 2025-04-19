@@ -106,33 +106,42 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 #
 #
 # ###Remove PCR duplicates
-ml picard
-module load SAMtools
+#ml picard
+#module load SAMtools
 
-for infile in $OUTDIR/bams3/*_q1.bam
-do
-  base=$(basename ${infile} _q1.bam)
+#for infile in $OUTDIR/bams3/*_q1.bam
+#do
+  #base=$(basename ${infile} _q1.bam)
 
   #Add read groups
-  java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
-    I=$OUTDIR/bams3/${base}_q1.bam \
-    O=$OUTDIR/bams3/${base}_q1_rg.bam \
-    RGID=1 \
-    RGLB=lib1 \
-    RGPL=ILLUMINA \
-    RGPU=unit1 \
-    RGSM=${base}
+  #java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
+  #  I=$OUTDIR/bams3/${base}_q1.bam \
+  #  O=$OUTDIR/bams3/${base}_q1_rg.bam \
+  #  RGID=1 \
+  #  RGLB=lib1 \
+  #  RGPL=ILLUMINA \
+  #  RGPU=unit1 \
+  #  RGSM=${base}
 
   # Run MarkDuplicates on the BAM with read groups
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
-    I=$OUTDIR/bams3/${base}_q1_rg.bam \
-    O=$OUTDIR/bams3/${base}_nodups.bam \
-    M=$OUTDIR/bams3/${base}_dupmetrics.txt \
-    REMOVE_DUPLICATES=true
-done
+  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
+  #  I=$OUTDIR/bams3/${base}_q1_rg.bam \
+  #  O=$OUTDIR/bams3/${base}_nodups.bam \
+  #  M=$OUTDIR/bams3/${base}_dupmetrics.txt \
+  #  REMOVE_DUPLICATES=true
+#done
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
-# ml SAMtools
+module load SAMtools
+samtools merge -f $OUTDIR/bams3/2hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/2.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2.5hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/3hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/3.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3.5hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/4hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/4.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4.5hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/6hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*6hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
+
 # samtools merge $OUTDIR/bams/2hpf_IgG_merge_nodup.bam $OUTDIR/bams/2hpf_IgG_1_nodups.bam $OUTDIR/bams/3.5hpf_IgG_1_nodups.bam
 # samtools merge $OUTDIR/bams/2.5hpf_IgG_merge_nodup.bam $OUTDIR/bams/2.5hpf_IgG_1_nodups.bam $OUTDIR/bams/2.5hpf_IgG_2_nodups.bam
 # samtools merge $OUTDIR/bams/3hpf_IgG_merge_nodup.bam $OUTDIR/bams/3hpf_IgG_1_nodups.bam $OUTDIR/bams/3hpf_IgG_2_nodups.bam
