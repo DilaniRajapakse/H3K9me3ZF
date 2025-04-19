@@ -133,26 +133,31 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
 module load SAMtools
-samtools merge -f $OUTDIR/bams3/2hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/2.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2.5hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/3hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/3.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3.5hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/4hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/4.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4.5hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/6hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*6hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
+for t in 2hpf 2.5hpf 3hpf 3.5hpf 4hpf 4.5hpf 6hpf 24hpf; do
+  infiles=($OUTDIR/bams3/*$t*IgG*ecoli*nodups.bam)
+  if [ ${#infiles[@]} -gt 0 ]; then
+    echo "Merging ${#infiles[@]} files for $t..."
+    samtools merge -f $OUTDIR/bams3/${t}_IgG_ecoli_nodups.bam "${infiles[@]}"
+  else
+    echo "No files found for $t — skipping"
+  fi
+done
 
-# samtools merge $OUTDIR/bams/2hpf_IgG_merge_nodup.bam $OUTDIR/bams/2hpf_IgG_1_nodups.bam $OUTDIR/bams/3.5hpf_IgG_1_nodups.bam
-# samtools merge $OUTDIR/bams/2.5hpf_IgG_merge_nodup.bam $OUTDIR/bams/2.5hpf_IgG_1_nodups.bam $OUTDIR/bams/2.5hpf_IgG_2_nodups.bam
-# samtools merge $OUTDIR/bams/3hpf_IgG_merge_nodup.bam $OUTDIR/bams/3hpf_IgG_1_nodups.bam $OUTDIR/bams/3hpf_IgG_2_nodups.bam
-# samtools merge $OUTDIR/bams/4hpf_IgG_merge_nodup.bam $OUTDIR/bams/4hpf_IgG_1_nodups.bam $OUTDIR/bams/4hpf_IgG_2_nodups.bam
-# samtools merge $OUTDIR/bams/4.5hpf_IgG_merge_nodup.bam $OUTDIR/bams/4.5hpf_IgG_1_nodups.bam $OUTDIR/bams/4.5hpf_IgG_2_nodups.bam
-#
-# samtools merge $OUTDIR/bams/2hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/2hpf_IgG_1_ecoli_nodups.bam $OUTDIR/bams/3.5hpf_IgG_1_ecoli_nodups.bam
-# samtools merge $OUTDIR/bams/2.5hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/2.5hpf_IgG_1_ecoli_nodups.bam $OUTDIR/bams/2.5hpf_IgG_2_ecoli_nodups.bam
-# samtools merge $OUTDIR/bams/3hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/3hpf_IgG_1_ecoli_nodups.bam $OUTDIR/bams/3hpf_IgG_2_ecoli_nodups.bam
-# samtools merge $OUTDIR/bams/4hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/4hpf_IgG_1_ecoli_nodups.bam $OUTDIR/bams/4hpf_IgG_2_ecoli_nodups.bam
-# samtools merge $OUTDIR/bams/4.5hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/4.5hpf_IgG_1_ecoli_nodups.bam $OUTDIR/bams/4.5hpf_IgG_2_ecoli_nodups.bam
+#4.18.25
+#samtools merge -f $OUTDIR/bams3/2hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2hpf*IgG*ecoli*nodups.bam
+#samtools merge -f $OUTDIR/bams3/2.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2.5hpf*IgG*ecoli*nodups.bam
+#samtools merge -f $OUTDIR/bams3/3hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3hpf*IgG*ecoli*nodups.bam
+#samtools merge -f $OUTDIR/bams3/3.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3.5hpf*IgG*ecoli*nodups.bam
+#samtools merge -f $OUTDIR/bams3/4hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4hpf*IgG*ecoli*nodups.bam
+#samtools merge -f $OUTDIR/bams3/4.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4.5hpf*IgG*ecoli*nodups.bam
+#samtools merge -f $OUTDIR/bams3/6hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*6hpf*IgG*ecoli*nodups.bam
+#samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
+#4.18.25
+
+
+
+
+
 #
 # samtools merge $OUTDIR/bams/IgG_danio_nodups.bam $OUTDIR/bams/2hpf_IgG_merge_nodup.bam $OUTDIR/bams/2.5hpf_IgG_merge_nodup.bam $OUTDIR/bams/3hpf_IgG_merge_nodup.bam $OUTDIR/bams/4hpf_IgG_merge_nodup.bam $OUTDIR/bams/4.5hpf_IgG_merge_nodup.bam
 # samtools merge $OUTDIR/bams/IgG_ecoli_nodups.bam $OUTDIR/bams/2hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/2.5hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/3hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/4hpf_IgG_ecoli_merge_nodup.bam $OUTDIR/bams/4.5hpf_IgG_ecoli_merge_nodup.bam
