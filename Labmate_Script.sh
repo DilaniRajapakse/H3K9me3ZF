@@ -135,16 +135,17 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_Abcam"
 module load SAMtools
 
 
-#4.18.25
-#samtools merge -f $OUTDIR/bams3/2hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2hpf*IgG*ecoli*nodups.bam
-#samtools merge -f $OUTDIR/bams3/2.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2.5hpf*IgG*ecoli*nodups.bam
-#samtools merge -f $OUTDIR/bams3/3hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3hpf*IgG*ecoli*nodups.bam
-#samtools merge -f $OUTDIR/bams3/3.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3.5hpf*IgG*ecoli*nodups.bam
-#samtools merge -f $OUTDIR/bams3/4hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4hpf*IgG*ecoli*nodups.bam
-#samtools merge -f $OUTDIR/bams3/4.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4.5hpf*IgG*ecoli*nodups.bam
-#samtools merge -f $OUTDIR/bams3/6hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*6hpf*IgG*ecoli*nodups.bam
-#samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
-#4.18.25
+#4.20.25
+samtools merge -f $OUTDIR/bams3/2hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/2.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*2.5hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/3hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/3.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*3.5hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/4hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/4.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4.5hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/6hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*6hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
+samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
+
 
 
 
