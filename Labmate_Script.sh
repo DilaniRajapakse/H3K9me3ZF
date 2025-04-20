@@ -144,7 +144,6 @@ samtools merge -f $OUTDIR/bams3/4hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4hpf*Ig
 samtools merge -f $OUTDIR/bams3/4.5hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*4.5hpf*IgG*ecoli*nodups.bam
 samtools merge -f $OUTDIR/bams3/6hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*6hpf*IgG*ecoli*nodups.bam
 samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
-samtools merge -f $OUTDIR/bams3/24hpf_IgG_ecoli_nodups.bam $OUTDIR/bams3/*24hpf*IgG*ecoli*nodups.bam
 
 
 
