@@ -79,56 +79,56 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #   mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
 # fi
 
- module load SAMtools
+#module load SAMtools
 
- for file in $OUTDIR/bams/${base}*ecoliAligned.sortedByCoord.out.bam
- do
-   base=$(basename ${file} ecoliAligned.sortedByCoord.out.bam)
-   samtools view -bq1 $file | samtools sort - > $OUTDIR/bams/${base}_ecoli_q1.bam
- done
+# for file in $OUTDIR/bams/${base}*ecoliAligned.sortedByCoord.out.bam
+# do
+#   base=$(basename ${file} ecoliAligned.sortedByCoord.out.bam)
+#   samtools view -bq1 $file | samtools sort - > $OUTDIR/bams/${base}_ecoli_q1.bam
+# done
 
- for infile in $OUTDIR/bams/*_ecoli_q1.bam
- do
-  base=$(basename "$infile" _ecoli_q1.bam)
-   echo "$base total aligned reads -" >> $OUTDIR/bams/bam_stats.txt
-   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-   echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
-   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-   echo "  $base total aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
-   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-   echo "$base q1 aligned reads -" >> $OUTDIR/bams/bam_stats.txt
-   samtools view -@ 24 -F 0x4 $infile | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-   echo "  $base q1 aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
-   samtools view -@ 24 -F 0x4 $infile | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-   echo "  $base q1 aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
-   samtools view -@ 24 -F 0x4 $infile | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
- done
+# for infile in $OUTDIR/bams/*_ecoli_q1.bam
+# do
+#  base=$(basename "$infile" _ecoli_q1.bam)
+#   echo "$base total aligned reads -" >> $OUTDIR/bams/bam_stats.txt
+#   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+#   echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
+#   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+#   echo "  $base total aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
+#   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+#   echo "$base q1 aligned reads -" >> $OUTDIR/bams/bam_stats.txt
+#   samtools view -@ 24 -F 0x4 $infile | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+#   echo "  $base q1 aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
+#   samtools view -@ 24 -F 0x4 $infile | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+#   echo "  $base q1 aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
+#   samtools view -@ 24 -F 0x4 $infile | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+# done
 #
 #
 # ###Remove PCR duplicates
-#ml picard
-#module load SAMtools
+module load picard
+module load SAMtools
 
-#for infile in $OUTDIR/bams3/*_q1.bam
-#do
-  #base=$(basename ${infile} _q1.bam)
+for infile in $OUTDIR/bams3/*_q1.bam
+do
+  base=$(basename ${infile} _q1.bam)
 
   #Add read groups
-  #java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
-  #  I=$OUTDIR/bams3/${base}_q1.bam \
-  #  O=$OUTDIR/bams3/${base}_q1_rg.bam \
-  #  RGID=1 \
-  #  RGLB=lib1 \
-  #  RGPL=ILLUMINA \
-  #  RGPU=unit1 \
-  #  RGSM=${base}
+  java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
+    I=$OUTDIR/bams3/${base}_q1.bam \
+    O=$OUTDIR/bams3/${base}_q1_rg.bam \
+    RGID=1 \
+    RGLB=lib1 \
+    RGPL=ILLUMINA \
+    RGPU=unit1 \
+    RGSM=${base}
 
   # Run MarkDuplicates on the BAM with read groups
-  #java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
-  #  I=$OUTDIR/bams3/${base}_q1_rg.bam \
-  #  O=$OUTDIR/bams3/${base}_nodups.bam \
-  #  M=$OUTDIR/bams3/${base}_dupmetrics.txt \
-  #  REMOVE_DUPLICATES=true
-#done
+  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
+    I=$OUTDIR/bams3/${base}_q1_rg.bam \
+    O=$OUTDIR/bams3/${base}_nodups.bam \
+    M=$OUTDIR/bams3/${base}_dupmetrics.txt \
+    REMOVE_DUPLICATES=true
+done
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
