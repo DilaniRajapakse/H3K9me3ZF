@@ -171,24 +171,31 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 module load Homer
 mkdir $BASEDIR/peaks
 
-for infile in $BASEDIR/bdgrphs/*.norm.bga
-  do base=$(basename ${infile} .norm.bga)
-  cat $infile | awk '{print $1 "\t" $2 "\t" $3 "\t" "+" "\t" "+" "\t" "+"}' > $BASEDIR/peaks/$base.bgato.bed
+#Convert normalized bga to BED format
+for infile in $BASEDIR/bdgrphs/*.norm.bga; do
+  base=$(basename "$infile" .norm.bga)
+  awk '{print $1 "\t" $2 "\t" $3 "\t" "+" "\t" "+" "\t" "+"}' "$infile" > $BASEDIR/peaks/$base.bgato.bed
 done
 
-for infile in $BASEDIR/peaks/*bgato.bed
-  do base=$(basename ${infile} .bgato.bed)
-  makeTagDirectory $BASEDIR/peaks/$base.BtB.tagdir $infile -format bed
+#Make tag directories for each BED
+for infile in $BASEDIR/peaks/*.bgato.bed; do
+  base=$(basename "$infile" .bgato.bed)
+  makeTagDirectory $BASEDIR/peaks/$base.BtB.tagdir "$infile" -format bed
 done
 
-for infile in $BASEDIR/peaks/*K9*.tagdir
-  do base=$(basename ${infile} .BtB.tagdir)
-  findPeaks $infile -style histone -minDist 1000 -gsize 1.5e9 -F 4 -i $BASEDIR/peaks/*mIgG*.tagdir -o $BASEDIR/peaks/$base.txt
+#Call peaks using merged IgG control
+for infile in $BASEDIR/peaks/*K9*.BtB.tagdir; do
+  base=$(basename "$infile" .BtB.tagdir)
+  findPeaks "$infile" -style histone -minDist 1000 -gsize 1.5e9 -F 4 \
+    -i $BASEDIR/peaks/IgG.BtB.tagdir \
+    -o $BASEDIR/peaks/$base.txt
 done
 
-for infile in $BASEDIR/peaks/*.txt
-do
-  base=$(basename ${infile} .txt)
-  sed '/^#/d' $infile | awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" $8 "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' | sed 's/\.000000//g' > $BASEDIR/peaks/$base.peaks.bed
+#Convert HOMER output to BED
+for infile in $BASEDIR/peaks/*.txt; do
+  base=$(basename "$infile" .txt)
+  sed '/^#/d' "$infile" | \
+    awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" $8 "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' | \
+    sed 's/\.000000//g' > $BASEDIR/peaks/$base.peaks.bed
 done
 
