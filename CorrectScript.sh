@@ -109,14 +109,14 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 module load picard
 module load SAMtools
 
-for infile in $OUTDIR/bams3/*_q1.bam
+for infile in $OUTDIR/bams/*_q1.bam
 do
   base=$(basename ${infile} _q1.bam)
 
   #Add read groups
   java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
-    I=$OUTDIR/bams3/${base}_q1.bam \
-    O=$OUTDIR/bams3/${base}_q1_rg.bam \
+    I=$OUTDIR/bams/${base}_q1.bam \
+    O=$OUTDIR/bams/${base}_q1_rg.bam \
     RGID=1 \
     RGLB=lib1 \
     RGPL=ILLUMINA \
