@@ -133,5 +133,8 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
 module load SAMtools
-samtools merge -f $BASEDIR/bams/IgG_nodups.bam $BASEDIR/bams/*IgG*[1-3]_nodups.bam
+samtools merge -f $BASEDIR/bams/IgG_nodups.bam \
+  $BASEDIR/bams/IgG_2.5hpf_nodups.bam \
+  $BASEDIR/bams/IgG_24hpf_nodups.bam \
+  $BASEDIR/bams/IgG_4.5hpf_nodups.bam
 samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam $BASEDIR/bams/*IgG*ecoli*nodups.bam
