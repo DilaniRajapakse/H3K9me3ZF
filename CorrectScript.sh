@@ -125,9 +125,9 @@ do
 
   # Run MarkDuplicates on the BAM with read groups
   java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
-    I=$OUTDIR/bams3/${base}_q1_rg.bam \
-    O=$OUTDIR/bams3/${base}_nodups.bam \
-    M=$OUTDIR/bams3/${base}_dupmetrics.txt \
+    I=$OUTDIR/bams/${base}_q1_rg.bam \
+    O=$OUTDIR/bams/${base}_nodups.bam \
+    M=$OUTDIR/bams/${base}_dupmetrics.txt \
     REMOVE_DUPLICATES=true
 done
 
