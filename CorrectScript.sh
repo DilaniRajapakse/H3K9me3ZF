@@ -145,9 +145,24 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #Now we need to extract all the aligned reads in preperation for spike in normalization
 module load BEDTools
 
-for infile in $BASEDIR/bams/*nodups.bam
-do
-  base=$(basename ${infile} .bam)
-  bedtools bamtobed -i $infile | awk -v OFS='\t' '{len = $3 - $2; print $0, len }' > $BASEDIR/bams/$base.btb.bed
-done
+#for infile in $BASEDIR/bams/*nodups.bam
+#do
+#  base=$(basename ${infile} .bam)
+#  bedtools bamtobed -i $infile | awk -v OFS='\t' '{len = $3 - $2; print $0, len }' > $BASEDIR/bams/$base.btb.bed
+#done
 
+##spike in normalization
+mkdir $BASEDIR/bdgrphs
+
+for file in $BASEDIR/bams/*.btb.bed;
+do
+  if [[ $prefix ]]; then
+        base=$(basename ${file} _nodups.btb.bed)
+        sh /home/dr27977/H3K9me3ZF/DNA_spike.kd.sh $file $first \
+        100000 bga $BASEDIR/genome/chrNameLength.txt 1 1000 $BASEDIR/bdgrphs/"$base".norm.bga
+        prefix=
+    else
+        first=$file
+        prefix=${file%%_*}
+    fi
+done
