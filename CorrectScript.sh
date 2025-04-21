@@ -69,15 +69,15 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #     fi
 # done
 
- rm $OUTDIR/bams/${base}*SJ.out.tab
+# rm $OUTDIR/bams/${base}*SJ.out.tab
 
- #if [ -d "$OUTDIR/bams/logs" ]
- #then
- #    mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
- #else
- #  mkdir $OUTDIR/bams/logs
- #  mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
- #fi
+ if [ -d "$OUTDIR/bams/logs" ]
+ then
+     mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
+ else
+   mkdir $OUTDIR/bams/logs
+   mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
+ fi
 
 # module load SAMtools
 
