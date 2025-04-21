@@ -143,7 +143,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 # $BASEDIR/bams/IgG_4.5hpf__ecoli*nodups.bam \
 
 #Now we need to extract all the aligned reads in preperation for spike in normalization
-module load BEDTools
+#module load BEDTools
 
 #for infile in $BASEDIR/bams/*nodups.bam
 #do
@@ -152,17 +152,43 @@ module load BEDTools
 #done
 
 ##spike in normalization
-mkdir $BASEDIR/bdgrphs
+#mkdir $BASEDIR/bdgrphs
 
-for file in $BASEDIR/bams/*.btb.bed;
-do
-  if [[ $prefix ]]; then
-        base=$(basename ${file} _nodups.btb.bed)
-        sh /home/dr27977/H3K9me3ZF/DNA_spike.kd.sh $file $first \
-        100000 bga $BASEDIR/genome/chrNameLength.txt 1 1000 $BASEDIR/bdgrphs/"$base".norm.bga
-        prefix=
-    else
-        first=$file
-        prefix=${file%%_*}
-    fi
+#for file in $BASEDIR/bams/*.btb.bed;
+#do
+#  if [[ $prefix ]]; then
+#        base=$(basename ${file} _nodups.btb.bed)
+#        sh /home/dr27977/H3K9me3ZF/DNA_spike.kd.sh $file $first \
+#        100000 bga $BASEDIR/genome/chrNameLength.txt 1 1000 $BASEDIR/bdgrphs/"$base".norm.bga
+#        prefix=
+#    else
+#        first=$file
+#        prefix=${file%%_*}
+#    fi
+#done
+
+###peak calling
+module load Homer
+mkdir $BASEDIR/peaks
+
+for infile in $BASEDIR/bdgrphs/*.norm.bga
+  do base=$(basename ${infile} .norm.bga)
+  cat $infile | awk '{print $1 "\t" $2 "\t" $3 "\t" "+" "\t" "+" "\t" "+"}' > $BASEDIR/peaks/$base.bgato.bed
 done
+
+for infile in $BASEDIR/peaks/*bgato.bed
+  do base=$(basename ${infile} .bgato.bed)
+  makeTagDirectory $BASEDIR/peaks/$base.BtB.tagdir $infile -format bed
+done
+
+for infile in $BASEDIR/peaks/*K9*.tagdir
+  do base=$(basename ${infile} .BtB.tagdir)
+  findPeaks $infile -style histone -minDist 1000 -gsize 1.5e9 -F 4 -i $BASEDIR/peaks/*mIgG*.tagdir -o $BASEDIR/peaks/$base.txt
+done
+
+for infile in $BASEDIR/peaks/*.txt
+do
+  base=$(basename ${infile} .txt)
+  sed '/^#/d' $infile | awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" $8 "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' | sed 's/\.000000//g' > $BASEDIR/peaks/$base.peaks.bed
+done
+
