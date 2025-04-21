@@ -132,12 +132,22 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #done
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
-module load SAMtools
+#module load SAMtools
 #samtools merge -f $BASEDIR/bams/IgG_nodups.bam \
 #  $BASEDIR/bams/IgG_2.5hpf_nodups.bam \
 #  $BASEDIR/bams/IgG_24hpf_nodups.bam \
 #  $BASEDIR/bams/IgG_4.5hpf_nodups.bam
-samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
- $BASEDIR/bams/IgG_2.5hpf__ecoli*nodups.bam \
- $BASEDIR/bams/IgG_24hpf__ecoli*nodups.bam \
- $BASEDIR/bams/IgG_4.5hpf__ecoli*nodups.bam \
+#samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
+# $BASEDIR/bams/IgG_2.5hpf__ecoli*nodups.bam \
+# $BASEDIR/bams/IgG_24hpf__ecoli*nodups.bam \
+# $BASEDIR/bams/IgG_4.5hpf__ecoli*nodups.bam \
+
+#Now we need to extract all the aligned reads in preperation for spike in normalization
+module load BEDTools
+
+for infile in $BASEDIR/bams/*nodups.bam
+do
+  base=$(basename ${infile} .bam)
+  bedtools bamtobed -i $infile | awk -v OFS='\t' '{len = $3 - $2; print $0, len }' > $BASEDIR/bams/$base.btb.bed
+done
+
