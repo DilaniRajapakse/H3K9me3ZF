@@ -106,29 +106,31 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #
 #
 # ###Remove PCR duplicates
-module load picard
-module load SAMtools
+#module load picard
+#module load SAMtools
 
-for infile in $OUTDIR/bams/*_q1.bam
-do
-  base=$(basename ${infile} _q1.bam)
+#for infile in $OUTDIR/bams/*_q1.bam
+#do
+#  base=$(basename ${infile} _q1.bam)
 
   #Add read groups
-  java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
-    I=$OUTDIR/bams/${base}_q1.bam \
-    O=$OUTDIR/bams/${base}_q1_rg.bam \
-    RGID=1 \
-    RGLB=lib1 \
-    RGPL=ILLUMINA \
-    RGPU=unit1 \
-    RGSM=${base}
+#  java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
+#    I=$OUTDIR/bams/${base}_q1.bam \
+#    O=$OUTDIR/bams/${base}_q1_rg.bam \
+#    RGID=1 \
+#    RGLB=lib1 \
+#    RGPL=ILLUMINA \
+#    RGPU=unit1 \
+#    RGSM=${base}
 
   # Run MarkDuplicates on the BAM with read groups
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
-    I=$OUTDIR/bams/${base}_q1_rg.bam \
-    O=$OUTDIR/bams/${base}_nodups.bam \
-    M=$OUTDIR/bams/${base}_dupmetrics.txt \
-    REMOVE_DUPLICATES=true
-done
+#  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
+#    I=$OUTDIR/bams/${base}_q1_rg.bam \
+#    O=$OUTDIR/bams/${base}_nodups.bam \
+#    M=$OUTDIR/bams/${base}_dupmetrics.txt \
+#    REMOVE_DUPLICATES=true
+#done
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
+samtools merge -f $BASEDIR/bams/IgG_nodups.bam $BASEDIR/bams/*IgG*[1-3]_nodups.bam
+samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam $BASEDIR/bams/*IgG*ecoli*nodups.bam
