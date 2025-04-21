@@ -140,4 +140,4 @@ module load SAMtools
 samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
  $BASEDIR/bams/IgG_2.5hpf__ecoli*nodups.bam \
  $BASEDIR/bams/IgG_24hpf__ecoli*nodups.bam \
- $BASEDIR/bams/IgG_4.5__ecoli*nodups.bam \
+ $BASEDIR/bams/IgG_4.5hpf__ecoli*nodups.bam \
