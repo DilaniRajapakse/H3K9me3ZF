@@ -129,7 +129,7 @@ do
     O=$OUTDIR/bams/${base}_nodups.bam \
     M=$OUTDIR/bams/${base}_dupmetrics.txt \
     REMOVE_DUPLICATES=true
-#done
+done
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
 #module load SAMtools
