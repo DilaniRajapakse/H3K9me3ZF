@@ -69,40 +69,40 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #     fi
 # done
 
- rm $OUTDIR/bams/${base}*SJ.out.tab
+# rm $OUTDIR/bams/${base}*SJ.out.tab
 
- if [ -d "$OUTDIR/bams/logs" ]
- then
-     mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
- else
-   mkdir $OUTDIR/bams/logs
-   mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
- fi
+# if [ -d "$OUTDIR/bams/logs" ]
+# then
+#     mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
+# else
+#   mkdir $OUTDIR/bams/logs
+#   mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
+# fi
 
-#module load SAMtools
+module load SAMtools
 
-# for file in $OUTDIR/bams/${base}*ecoliAligned.sortedByCoord.out.bam
-# do
-#   base=$(basename ${file} ecoliAligned.sortedByCoord.out.bam)
-#   samtools view -bq1 $file | samtools sort - > $OUTDIR/bams/${base}_ecoli_q1.bam
-# done
+ for file in $OUTDIR/bams/${base}*ecoliAligned.sortedByCoord.out.bam
+ do
+   base=$(basename ${file} ecoliAligned.sortedByCoord.out.bam)
+   samtools view -bq1 $file | samtools sort - > $OUTDIR/bams/${base}_ecoli_q1.bam
+ done
 
-# for infile in $OUTDIR/bams/*_ecoli_q1.bam
-# do
-#  base=$(basename "$infile" _ecoli_q1.bam)
-#   echo "$base total aligned reads -" >> $OUTDIR/bams/bam_stats.txt
-#   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-#   echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
-#   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-#   echo "  $base total aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
-#   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-#   echo "$base q1 aligned reads -" >> $OUTDIR/bams/bam_stats.txt
-#   samtools view -@ 24 -F 0x4 $infile | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-#   echo "  $base q1 aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
-#   samtools view -@ 24 -F 0x4 $infile | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-#   echo "  $base q1 aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
-#   samtools view -@ 24 -F 0x4 $infile | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
-# done
+ for infile in $OUTDIR/bams/*_ecoli_q1.bam
+ do
+  base=$(basename "$infile" _ecoli_q1.bam)
+   echo "$base total aligned reads -" >> $OUTDIR/bams/bam_stats.txt
+   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+   echo "  $base total aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
+   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+   echo "  $base total aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
+   samtools view -@ 24 -F 0x4 $OUTDIR/bams/${base}ecoliAligned.sortedByCoord.out.bam | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+   echo "$base q1 aligned reads -" >> $OUTDIR/bams/bam_stats.txt
+   samtools view -@ 24 -F 0x4 $infile | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+   echo "  $base q1 aligned reads (unique mappers) -" >> $OUTDIR/bams/bam_stats.txt
+   samtools view -@ 24 -F 0x4 $infile | grep "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+   echo "  $base q1 aligned reads (multi mappers) -" >> $OUTDIR/bams/bam_stats.txt
+   samtools view -@ 24 -F 0x4 $infile | grep -v "NH:i:1" | cut -f 1 | sort | uniq | wc -l >> $OUTDIR/bams/bam_stats.txt
+ done
 #
 #
 # ###Remove PCR duplicates
