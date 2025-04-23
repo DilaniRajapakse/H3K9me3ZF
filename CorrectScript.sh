@@ -255,6 +255,8 @@ module load BEDtools
 #  base=$(basename ${infile} .maskann.txt)
 #  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt
 #done
+#Did not have annotated TE file uploaded
+TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
 
 for infile in $BASEDIR/peaks/ann/*maskann.txt
 do
@@ -264,15 +266,10 @@ done
 
 mkdir -p $BASEDIR/peaks/ann4
 
-for infile in $BASEDIR/peaks/*final.bed
+for infile in $BASEDIR/peaks/ann/*MOREthan1000bp.bed
 do
-  base=$( basename ${infile} final.bed)
-
-  for tefile in /scratch/dr27977/TEanns/*.bed
-  do
-    tename=$(basename ${tefile} .bed)
-    bedtools intersect -a $tefile -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/${base}.${tename}.TEann.txt
-  done
+  base=$( basename ${infile} .MOREthan1000bp.bed )
+  bedtools intersect -a $infile -b $TEFILE -f 0.50 -u > $BASEDIR/peaks/ann4/${base}.TEann.txt
 done
 
 for infile in $BASEDIR/peaks/ann4/*.TEann.txt
