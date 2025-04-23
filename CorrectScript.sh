@@ -267,7 +267,7 @@ mkdir -p $BASEDIR/peaks/ann4
 for infile in $BASEDIR/peaks/*final.bed
 do
   base=$( basename ${infile} final.bed)
-  bedtools intersect -a /work/mglab/kld/TEanns/*0.1*.bed -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/$base.TEann.txt
+  bedtools intersect -a /work/mglab/dr27977/TEanns/*0.1*.bed -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/$base.TEann.txt
 done
 
 for infile in $BASEDIR/peaks/ann4/*.TEann.txt
