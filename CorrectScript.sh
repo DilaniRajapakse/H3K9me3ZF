@@ -267,11 +267,16 @@ mkdir -p $BASEDIR/peaks/ann4
 for infile in $BASEDIR/peaks/*final.bed
 do
   base=$( basename ${infile} final.bed)
-  bedtools intersect -a /work/mglab/dr27977/TEanns/*0.1*.bed -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/$base.TEann.txt
+
+  for tefile in /work/mglab/dr27977/TEanns/*0.1*.bed
+  do
+    tename=$(basename ${tefile} .bed)
+    bedtools intersect -a $tefile -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/${base}.${tename}.TEann.txt
+  done
 done
 
 for infile in $BASEDIR/peaks/ann4/*.TEann.txt
 do
   base=$(basename ${infile} .TEann.txt)
-  awk '{print $4}' $infile | sort | uniq -c | awk '{print $1 "\t" $2}' > $BASEDIR/"$base"_TEcounts2.bed
+  awk '{print $4}' $infile | sort | uniq -c | awk '{print $1 "\t" $2}' > $BASEDIR/${base}_TEcounts2.bed
 done
