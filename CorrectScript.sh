@@ -137,19 +137,25 @@ samtools merge -f $BASEDIR/bams/IgG_nodups.bam \
   $BASEDIR/bams/IgG_2.5hpf_nodups.bam \
   $BASEDIR/bams/IgG_24hpf_nodups.bam \
   $BASEDIR/bams/IgG_4.5hpf_nodups.bam \
-  $BASEDIR/bams/4hpf_IgG_nodups.bam \
-  $BASEDIR/bams/3hpf_IgG_nodups.bam \
-  $BASEDIR/bams/3.5hpf_IgG_nodups.bam \
-  $BASEDIR/bams/2hpf_IgG_nodups.bam \
+  $BASEDIR/bams/4hpf_IgG_1_nodups.bam \
+  $BASEDIR/bams/4hpf_IgG_2_nodups.bam \
+  $BASEDIR/bams/3hpf_IgG_1_nodups.bam \
+  $BASEDIR/bams/3hpf_IgG_2_nodups.bam \
+  $BASEDIR/bams/3.5hpf_IgG_1_nodups.bam \
+  $BASEDIR/bams/3.5hpf_IgG_2_nodups.bam \
+  $BASEDIR/bams/2hpf_IgG_1_nodups.bam \
 
 samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
  $BASEDIR/bams/IgG_2.5hpf__ecoli*nodups.bam \
  $BASEDIR/bams/IgG_24hpf__ecoli*nodups.bam \
  $BASEDIR/bams/IgG_4.5hpf__ecoli*nodups.bam \
- $BASEDIR/bams/4hpf_IgG__ecoli*nodups.bam \
- $BASEDIR/bams/3hpf_IgG__ecoli*nodups.bam \
- $BASEDIR/bams/3.5hpf_IgG__ecoli*nodups.bam \
- $BASEDIR/bams/2hpf_IgG__ecoli*nodups.bam \
+ $BASEDIR/bams/4hpf_IgG_1__ecoli*nodups.bam \
+ $BASEDIR/bams/4hpf_IgG_2__ecoli*nodups.bam \
+ $BASEDIR/bams/3hpf_IgG_1__ecoli*nodups.bam \
+ $BASEDIR/bams/3hpf_IgG_2__ecoli*nodups.bam \
+ $BASEDIR/bams/3.5hpf_IgG_1__ecoli*nodups.bam \
+ $BASEDIR/bams/3.5hpf_IgG_2__ecoli*nodups.bam \
+ $BASEDIR/bams/2hpf_IgG_1__ecoli*nodups.bam \
 
 #Now we need to extract all the aligned reads in preperation for spike in normalization
 #module load BEDTools
