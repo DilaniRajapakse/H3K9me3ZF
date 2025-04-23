@@ -257,23 +257,22 @@ module load BEDtools
 #done
 #Did not have annotated TE file uploaded
 TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
+ANNDIR="$BASEDIR/peaks/ann"
+ANNOUTDIR="$BASEDIR/peaks/ann4"
 
-for infile in $BASEDIR/peaks/ann/*maskann.txt
-do
-  base=$(basename ${infile} .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) >=1000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $BASEDIR/peaks/ann/$base.MOREthan1000bp.bed
+for infile in "$ANNDIR"/*maskann.txt; do
+  base=$(basename "$infile" .maskann.txt)
+  awk -F'\t' 'sqrt($10*$10) >= 1000' "$infile" | awk '{print $2 "\t" $3 "\t" $4 }' > "$ANNDIR/$base.MOREthan1000bp.bed"
 done
 
-mkdir -p $BASEDIR/peaks/ann4
+mkdir -p "$ANNOUTDIR"
 
-for infile in $BASEDIR/peaks/ann/*MOREthan1000bp.bed
-do
-  base=$( basename ${infile} .MOREthan1000bp.bed )
-  bedtools intersect -a $infile -b $TEFILE -f 0.50 -u > $BASEDIR/peaks/ann4/${base}.TEann.txt
+for infile in "$ANNDIR"/*MOREthan1000bp.bed; do
+  base=$(basename "$infile" .MOREthan1000bp.bed)
+  bedtools intersect -a "$infile" -b "$TEFILE" -f 0.50 -u > "$ANNOUTDIR/${base}.TEann.txt"
 done
 
-for infile in $BASEDIR/peaks/ann4/*.TEann.txt
-do
-  base=$(basename ${infile} .TEann.txt)
-  awk '{print $4}' $infile | sort | uniq -c | awk '{print $1 "\t" $2}' > $BASEDIR/${base}_TEcounts2.bed
+for infile in "$ANNOUTDIR"/*.TEann.txt; do
+  base=$(basename "$infile" .TEann.txt)
+  awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
 done
