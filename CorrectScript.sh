@@ -256,6 +256,8 @@ module load BEDtools
 #  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt
 #done
 #Did not have annotated TE file uploaded
+
+#4.23.25 Original
 TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
 ANNDIR="$BASEDIR/peaks/ann"
 ANNOUTDIR="$BASEDIR/peaks/ann4"
@@ -276,3 +278,5 @@ for infile in "$ANNOUTDIR"/*.TEann.txt; do
   base=$(basename "$infile" .TEann.txt)
   awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
 done
+
+
