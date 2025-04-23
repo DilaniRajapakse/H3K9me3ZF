@@ -142,7 +142,6 @@ samtools merge -f $BASEDIR/bams/IgG_nodups.bam \
   $BASEDIR/bams/3hpf_IgG_1_nodups.bam \
   $BASEDIR/bams/3hpf_IgG_2_nodups.bam \
   $BASEDIR/bams/3.5hpf_IgG_1_nodups.bam \
-  $BASEDIR/bams/3.5hpf_IgG_2_nodups.bam \
   $BASEDIR/bams/2hpf_IgG_1_nodups.bam \
 
 samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
@@ -154,7 +153,6 @@ samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
  $BASEDIR/bams/3hpf_IgG_1__ecoli*nodups.bam \
  $BASEDIR/bams/3hpf_IgG_2__ecoli*nodups.bam \
  $BASEDIR/bams/3.5hpf_IgG_1__ecoli*nodups.bam \
- $BASEDIR/bams/3.5hpf_IgG_2__ecoli*nodups.bam \
  $BASEDIR/bams/2hpf_IgG_1__ecoli*nodups.bam \
 
 #Now we need to extract all the aligned reads in preperation for spike in normalization
