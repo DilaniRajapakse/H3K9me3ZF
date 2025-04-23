@@ -181,7 +181,11 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #    fi
 #done
 
-###peak calling
+###peak calling: I believe this is specifically for classifying peaks within 1kb of a genic TSS and the TEann portion is to intersect
+### peaks with TE annotation to keep only TEs that overlap with at least 50% of the peak, to find TE-associated H3K9me3.
+### TEcounts2.bed counts how many time each TE type is marked by H3K9me3 in that file
+
+
 #module load Homer
 #mkdir $BASEDIR/peaks
 
@@ -239,8 +243,8 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #done
 
 ###peak annotation####
-module load Homer
-module load BEDtools
+#module load Homer
+#module load BEDtools
 #curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
 #mkdir $BASEDIR/peaks/ann
 
@@ -258,25 +262,27 @@ module load BEDtools
 #Did not have annotated TE file uploaded
 
 #4.23.25 Original
-TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
-ANNDIR="$BASEDIR/peaks/ann"
-ANNOUTDIR="$BASEDIR/peaks/ann4"
+#TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
+#ANNDIR="$BASEDIR/peaks/ann"
+#ANNOUTDIR="$BASEDIR/peaks/ann4"
 
-for infile in "$ANNDIR"/*maskann.txt; do
-  base=$(basename "$infile" .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) >= 1000' "$infile" | awk '{print $2 "\t" $3 "\t" $4 }' > "$ANNDIR/$base.MOREthan1000bp.bed"
-done
-#Filtering for broad peaks (greater than or = to 1kb) using sqrt($10*$10) >= 1000 (1000bp peaks from HOMER’s annotation) So if I'm interested in 5kb region I have to change this
-mkdir -p "$ANNOUTDIR"
+#for infile in "$ANNDIR"/*maskann.txt; do
+#  base=$(basename "$infile" .maskann.txt)
+#  awk -F'\t' 'sqrt($10*$10) >= 1000' "$infile" | awk '{print $2 "\t" $3 "\t" $4 }' > "$ANNDIR/$base.MOREthan1000bp.bed"
+#done
 
-for infile in "$ANNDIR"/*MOREthan1000bp.bed; do
-  base=$(basename "$infile" .MOREthan1000bp.bed)
-  bedtools intersect -a "$infile" -b "$TEFILE" -f 0.50 -u > "$ANNOUTDIR/${base}.TEann.txt"
-done
+###Filtering for broad peaks (greater than or = to 1kb) using sqrt($10*$10) >= 1000 (1000bp peaks from HOMER’s annotation) So if I'm interested in 5kb region I have to change this
+#mkdir -p "$ANNOUTDIR"
 
-for infile in "$ANNOUTDIR"/*.TEann.txt; do
-  base=$(basename "$infile" .TEann.txt)
-  awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
-done
+#for infile in "$ANNDIR"/*MOREthan1000bp.bed; do
+#  base=$(basename "$infile" .MOREthan1000bp.bed)
+#  bedtools intersect -a "$infile" -b "$TEFILE" -f 0.50 -u > "$ANNOUTDIR/${base}.TEann.txt"
+#done
 
+#for infile in "$ANNOUTDIR"/*.TEann.txt; do
+#  base=$(basename "$infile" .TEann.txt)
+#  awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
+#done
 
+###4.23.25. Going forward, I believe I want to take my originally created .bga files and make bigwigs from those to make timepoint
+###tracks in IGV? I think I need to merge timepoints together to create 1 bw per timepoint and then have 1 merged IgG track that I can use to compare to all time points
