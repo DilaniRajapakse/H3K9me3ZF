@@ -223,6 +223,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #chipr -i $BASEDIR/peaks/K9abcam_24hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/24hpf_K9_repPeaks
 
 ###make a blacklist file
+module load Homer
 makeTagDirectory $BASEDIR/peaks/IgG.BtB.tagdir $BASEDIR/peaks/IgG.bgato.bed -format bed
 findPeaks $BASEDIR/peaks/IgG.BtB.tagdir -style factor -o $BASEDIR/peaks/IgG.txt
 sed '/^#/d' $BASEDIR/peaks/IgG.txt | \
