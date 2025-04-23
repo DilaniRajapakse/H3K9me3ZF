@@ -266,7 +266,7 @@ for infile in "$ANNDIR"/*maskann.txt; do
   base=$(basename "$infile" .maskann.txt)
   awk -F'\t' 'sqrt($10*$10) >= 1000' "$infile" | awk '{print $2 "\t" $3 "\t" $4 }' > "$ANNDIR/$base.MOREthan1000bp.bed"
 done
-
+#Filtering for broad peaks (greater than or = to 1kb) using sqrt($10*$10) >= 1000 (1000bp peaks from HOMER’s annotation) So if I'm interested in 5kb region I have to change this
 mkdir -p "$ANNOUTDIR"
 
 for infile in "$ANNDIR"/*MOREthan1000bp.bed; do
