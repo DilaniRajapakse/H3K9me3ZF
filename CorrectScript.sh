@@ -241,20 +241,20 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 ###peak annotation####
 module load Homer
 module load BEDtools
-curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
-mkdir $BASEDIR/peaks/ann
+#curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
+#mkdir $BASEDIR/peaks/ann
 
-for infile in $BASEDIR/peaks/*final.bed
-do
-  base=$( basename ${infile} final.bed)
-  annotatePeaks.pl $infile danRer11 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
-done
+#for infile in $BASEDIR/peaks/*final.bed
+#do
+#  base=$( basename ${infile} final.bed)
+#  annotatePeaks.pl $infile danRer11 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
+#done
 
-for infile in $BASEDIR/peaks/ann/*maskann.txt
-do
-  base=$(basename ${infile} .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt
-done
+#for infile in $BASEDIR/peaks/ann/*maskann.txt
+#do
+#  base=$(basename ${infile} .maskann.txt)
+#  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt
+#done
 
 for infile in $BASEDIR/peaks/ann/*maskann.txt
 do
@@ -262,14 +262,16 @@ do
   awk -F'\t' 'sqrt($10*$10) >=1000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $BASEDIR/peaks/ann/$base.MOREthan1000bp.bed
 done
 
+mkdir -p $BASEDIR/peaks/ann4
+
 for infile in $BASEDIR/peaks/*final.bed
 do
   base=$( basename ${infile} final.bed)
-    bedtools intersect -a /work/mglab/kld/TEanns/*0.1*.bed -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/$base.TEann.txt
+  bedtools intersect -a /work/mglab/kld/TEanns/*0.1*.bed -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/$base.TEann.txt
 done
 
-for infile in $BASEDIR/peaks/ann4/*_.TEann.txt
+for infile in $BASEDIR/peaks/ann4/*.TEann.txt
 do
-  base=$(basename ${infile} _.TEann.txt)
-  awk '{print $4}' $infile | sort - | uniq -c | awk '{print $1 "\t" $2}'> $BASEDIR/"$base"_TEcounts2.bed
+  base=$(basename ${infile} .TEann.txt)
+  awk '{print $4}' $infile | sort | uniq -c | awk '{print $1 "\t" $2}' > $BASEDIR/"$base"_TEcounts2.bed
 done
