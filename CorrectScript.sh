@@ -268,7 +268,7 @@ for infile in $BASEDIR/peaks/*final.bed
 do
   base=$( basename ${infile} final.bed)
 
-  for tefile in /work/mglab/dr27977/TEanns/*0.1*.bed
+  for tefile in /scratch/dr27977/TEanns/*.bed
   do
     tename=$(basename ${tefile} .bed)
     bedtools intersect -a $tefile -b $infile -f 0.50 -u > $BASEDIR/peaks/ann4/${base}.${tename}.TEann.txt
