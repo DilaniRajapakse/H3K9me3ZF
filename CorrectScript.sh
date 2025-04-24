@@ -289,12 +289,19 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #4.24.25
 ###lets make these bedgraphs into bigwigs for data visualization
-module load ucsc/443
-mkdir $BASEDIR/bws
+#module load ucsc/443
+#mkdir $BASEDIR/bws
 
-for infile in $BASEDIR/bdgrphs/*norm.bga
-do
-  base=$(basename ${infile} .norm.bga)
-  bedSort $infile $infile
-  bedGraphToBigWig $infile $BASEDIR/genome/chrNameLength.txt $BASEDIR/bws/$base.bw
-done
+#for infile in $BASEDIR/bdgrphs/*norm.bga
+#do
+#  base=$(basename ${infile} .norm.bga)
+#  bedSort $infile $infile
+#  bedGraphToBigWig $infile $BASEDIR/genome/chrNameLength.txt $BASEDIR/bws/$base.bw
+#done
+
+###lets do some broad comparisons to see what our data looks like before moving on
+module load deepTools
+
+multiBigwigSummary bins -b $BASEDIR/bws/*[1-3].bw $BASEDIR/bws/*IgG*.bw -o $BASEDIR/bwreps_summ.npz -p 24
+plotCorrelation -in $BASEDIR/bwreps_summ.npz -c spearman -p heatmap -o $BASEDIR/timecourse_bwreps_summ_heatmap.pdf
+plotPCA -in $BASEDIR/bwreps_summ.npz -o $BASEDIR/timecourse_bwreps_summ_PCA.pdf
