@@ -290,7 +290,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #4.24.25
 ###lets make these bedgraphs into bigwigs for data visualization
 module load ucsc/443
-mkdir /scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/bws
+mkdir $BASEDIR/bws
 
 for infile in $BASEDIR/bdgrphs/*norm.bga
 do
