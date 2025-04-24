@@ -286,3 +286,15 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 ###4.23.25. Going forward, I believe I want to take my originally created .bga files and make bigwigs from those to make timepoint
 ###tracks in IGV? I think I need to merge timepoints together to create 1 bw per timepoint and then have 1 merged IgG track that I can use to compare to all time points
+
+#4.24.25
+###lets make these bedgraphs into bigwigs for data visualization
+module load ucsc/443
+mkdir $BASEDIR/bws
+
+for infile in $BASEDIR/bdgrphs/*norm.bga
+do
+  base=$(basename ${infile} .norm.bga)
+  bedSort $infile $infile
+  bedGraphToBigWig $infile $BASEDIR/genome/chrNameLength.txt $BASEDIR/bws/$base.bw
+done
