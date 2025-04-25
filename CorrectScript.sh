@@ -25,7 +25,7 @@ fi
 
 BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
-#ml STAR
+#ml STAR (SAMtools/1.18-GCC-12.3.0 )
 #for file in $OUTDIR/*_R*.fastq.gz;
 #do
 # if [[ $prefix ]]; then
@@ -79,7 +79,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #   mv $OUTDIR/bams/*Log* $OUTDIR/bams/logs
 # fi
 
-#module load SAMtools
+#module load SAMtools (SAMtools/1.18-GCC-12.3.0) 
 
 # for file in $OUTDIR/bams/${base}*ecoliAligned.sortedByCoord.out.bam
 # do
@@ -106,8 +106,8 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #
 #
 # ###Remove PCR duplicates
-#module load picard
-#module load SAMtools
+#module load picard (picard/3.2.0-Java-17 )
+#module load SAMtools (SAMtools/1.18-GCC-12.3.0 )
 
 #for infile in $OUTDIR/bams/*_q1.bam
 #do
@@ -133,7 +133,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
 #see if the other replicates exist
-#module load SAMtools
+#module load SAMtools (SAMtools/1.18-GCC-12.3.0 )
 #samtools merge -f $BASEDIR/bams/IgG_nodups.bam \
 #  $BASEDIR/bams/IgG_2.5hpf_nodups.bam \
 #  $BASEDIR/bams/IgG_24hpf_nodups.bam \
@@ -157,7 +157,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 # $BASEDIR/bams/2hpf_IgG_1__ecoli*nodups.bam \
 
 #Now we need to extract all the aligned reads in preperation for spike in normalization
-#module load BEDTools
+#module load BEDTools (pybedtools/0.9.1-foss-2023a)
 
 #for infile in $BASEDIR/bams/*nodups.bam
 #do
@@ -186,7 +186,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 ### TEcounts2.bed counts how many time each TE type is marked by H3K9me3 in that file
 
 
-#module load Homer
+#module load Homer (Homer/5.1-foss-2023a-R-4.3.2)
 #mkdir $BASEDIR/peaks
 
 #Convert normalized bga to BED format
@@ -217,7 +217,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #    sed 's/\.000000//g' > $BASEDIR/peaks/$base.peaks.bed
 #done
 
-#module load ChIP-R
+#module load ChIP-R (ChIP-R/1.1.0-foss-2022a-Python-3.10.4)
 #chipr -i $BASEDIR/peaks/2hpf_K9_1.peaks.bed $BASEDIR/peaks/2hpf_K9_2.peaks.bed -m 2 -o $BASEDIR/peaks/2hpf_K9_repPeaks
 #chipr -i $BASEDIR/peaks/K9abcam_2.5hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_2.5hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_2.5hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/2.5hpf_K9_repPeaks
 #chipr -i $BASEDIR/peaks/3hpf_K9_1.peaks.bed $BASEDIR/peaks/3hpf_K9_2.peaks.bed $BASEDIR/peaks/3hpf_K9_3.peaks.bed -m 2 -o $BASEDIR/peaks/3hpf_K9_repPeaks
@@ -227,13 +227,13 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #chipr -i $BASEDIR/peaks/K9abcam_24hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/24hpf_K9_repPeaks
 
 ###make a blacklist file
-#module load Homer
+#module load Homer (Homer/5.1-foss-2023a-R-4.3.2)
 #makeTagDirectory $BASEDIR/peaks/IgG.BtB.tagdir $BASEDIR/peaks/IgG.bgato.bed -format bed
 #findPeaks $BASEDIR/peaks/IgG.BtB.tagdir -style factor -o $BASEDIR/peaks/IgG.txt
 #sed '/^#/d' $BASEDIR/peaks/IgG.txt | \
 #  awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" "1" "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' > $BASEDIR/peaks/blacklist.bed
 
-#ml BEDTools
+#ml BEDTools (pybedtools/0.9.1-foss-2023a)
 
 ###intersect the peaks with the blacklist file to make sure we aren't looking at sticky regions before this step
 #for infile in $BASEDIR/peaks/*_repPeaks_all.bed
@@ -243,8 +243,8 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #done
 
 ###peak annotation####
-#module load Homer
-#module load BEDtools
+#module load Homer (Homer/5.1-foss-2023a-R-4.3.2)
+#module load BEDtools (pybedtools/0.9.1-foss-2023a)
 #curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
 #mkdir $BASEDIR/peaks/ann
 
