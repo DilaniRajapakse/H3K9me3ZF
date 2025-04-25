@@ -242,7 +242,11 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #  bedtools intersect -a $infile -b $BASEDIR/peaks/blacklist.bed -v > $BASEDIR/peaks/"$base"_final.bed
 #done
 
-###peak annotation####
+###peak annotation#### 4.25.25 This section is to get a gene list with H3K9me3 enriched peaks. bga files before will show all H3K9me3 enrichment across the genome, we need maskann list to find specific genes.
+
+##mask ann is all annotated H3K9me3 peaks in zebrafish genome
+##TE ann is all transposoable elements in genome with H3K9me3
+
 #module load Homer (Homer/5.1-foss-2023a-R-4.3.2)
 #module load BEDtools (pybedtools/0.9.1-foss-2023a)
 #curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
@@ -259,30 +263,11 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #  base=$(basename ${infile} .maskann.txt)
 #  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt
 #done
+
+###  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt. The 1000 is to get within 1kb of a gene
 #Did not have annotated TE file uploaded
 
-#4.23.25 Original
-#TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
-#ANNDIR="$BASEDIR/peaks/ann"
-#ANNOUTDIR="$BASEDIR/peaks/ann4"
 
-#for infile in "$ANNDIR"/*maskann.txt; do
-#  base=$(basename "$infile" .maskann.txt)
-#  awk -F'\t' 'sqrt($10*$10) >= 1000' "$infile" | awk '{print $2 "\t" $3 "\t" $4 }' > "$ANNDIR/$base.MOREthan1000bp.bed"
-#done
-
-###Filtering for broad peaks (greater than or = to 1kb) using sqrt($10*$10) >= 1000 (1000bp peaks from HOMER’s annotation) So if I'm interested in 5kb region I have to change this
-#mkdir -p "$ANNOUTDIR"
-
-#for infile in "$ANNDIR"/*MOREthan1000bp.bed; do
-#  base=$(basename "$infile" .MOREthan1000bp.bed)
-#  bedtools intersect -a "$infile" -b "$TEFILE" -f 0.50 -u > "$ANNOUTDIR/${base}.TEann.txt"
-#done
-
-#for infile in "$ANNOUTDIR"/*.TEann.txt; do
-#  base=$(basename "$infile" .TEann.txt)
-#  awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
-#done
 
 ###4.23.25. Going forward, I believe I want to take my originally created .bga files and make bigwigs from those to make timepoint
 ###tracks in IGV? I think I need to merge timepoints together to create 1 bw per timepoint and then have 1 merged IgG track that I can use to compare to all time points
@@ -305,3 +290,27 @@ module load deepTools
 multiBigwigSummary bins -b $BASEDIR/bws/*[1-3].bw $BASEDIR/bws/*IgG*.bw -o $BASEDIR/bwreps_summ.npz -p 24
 plotCorrelation -in $BASEDIR/bwreps_summ.npz -c spearman -p heatmap -o $BASEDIR/timecourse_bwreps_summ_heatmap.pdf
 plotPCA -in $BASEDIR/bwreps_summ.npz -o $BASEDIR/timecourse_bwreps_summ_PCA.pdf
+
+
+#4.23.25 Original: all of this is TE specific, I don't need those
+#TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
+#ANNDIR="$BASEDIR/peaks/ann"
+#ANNOUTDIR="$BASEDIR/peaks/ann4"
+
+#for infile in "$ANNDIR"/*maskann.txt; do
+#  base=$(basename "$infile" .maskann.txt)
+#  awk -F'\t' 'sqrt($10*$10) >= 1000' "$infile" | awk '{print $2 "\t" $3 "\t" $4 }' > "$ANNDIR/$base.MOREthan1000bp.bed"
+#done
+
+###Filtering for broad peaks (greater than or = to 1kb) using sqrt($10*$10) >= 1000 (1000bp peaks from HOMER’s annotation) So if I'm interested in 5kb region I have to change this
+#mkdir -p "$ANNOUTDIR"
+
+#for infile in "$ANNDIR"/*MOREthan1000bp.bed; do
+#  base=$(basename "$infile" .MOREthan1000bp.bed)
+#  bedtools intersect -a "$infile" -b "$TEFILE" -f 0.50 -u > "$ANNOUTDIR/${base}.TEann.txt"
+#done
+
+#for infile in "$ANNOUTDIR"/*.TEann.txt; do
+#  base=$(basename "$infile" .TEann.txt)
+#  awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
+#done
