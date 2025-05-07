@@ -247,23 +247,29 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 ##mask ann is all annotated H3K9me3 peaks in zebrafish genome
 ##TE ann is all transposoable elements in genome with H3K9me3
 
-#module load Homer (Homer/5.1-foss-2023a-R-4.3.2)
-#module load BEDtools (pybedtools/0.9.1-foss-2023a)
-#curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
-#mkdir $BASEDIR/peaks/ann
+#5.7.25 Get gene list of H3K9me3 annotated peaks within 5kb of TSS and peaks outside the 5kb region
+module load Homer (Homer/5.1-foss-2023a-R-4.3.2)
+module load BEDtools (pybedtools/0.9.1-foss-2023a)
+curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
+mkdir $BASEDIR/peaks/ann
 
-#for infile in $BASEDIR/peaks/*final.bed
-#do
-#  base=$( basename ${infile} final.bed)
-#  annotatePeaks.pl $infile danRer11 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
-#done
+for infile in $BASEDIR/peaks/*final.bed
+do
+  base=$( basename ${infile} final.bed)
+  annotatePeaks.pl $infile danRer11 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
+done
 
-#for infile in $BASEDIR/peaks/ann/*maskann.txt
-#do
-#  base=$(basename ${infile} .maskann.txt)
-#  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt
-#done
+for infile in $BASEDIR/peaks/ann/*maskann.txt
+do
+  base=$(basename ${infile} .maskann.txt)
+  awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $BASEDIR/peaks/ann/$base.5000bp_ann.txt
+done
 
+for infile in $OUTDIR/peaks/ann/*maskann.txt
+ do
+   base=$(basename ${infile} .maskann.txt)
+   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $BASEDIR/peaks/ann/${base}.MOREthan5000bp.bed
+ done
 ###  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt. The 1000 is to get within 1kb of a gene
 #Did not have annotated TE file uploaded
 
@@ -285,11 +291,12 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #done
 
 ###lets do some broad comparisons to see what our data looks like before moving on
-module load deepTools (deepTools/3.5.2-foss-2022a)
+#module load deepTools (deepTools/3.5.2-foss-2022a)
 
-multiBigwigSummary bins -b $BASEDIR/bws/*[1-3].bw $BASEDIR/bws/*IgG*.bw -o $BASEDIR/bwreps_summ.npz -p 24
-plotCorrelation -in $BASEDIR/bwreps_summ.npz -c spearman -p heatmap -o $BASEDIR/timecourse_bwreps_summ_heatmap.pdf
-plotPCA -in $BASEDIR/bwreps_summ.npz -o $BASEDIR/timecourse_bwreps_summ_PCA.pdf
+
+#multiBigwigSummary bins -b $BASEDIR/bws/*[1-3].bw $BASEDIR/bws/*IgG*.bw -o $BASEDIR/bwreps_summ.npz -p 24
+#plotCorrelation -in $BASEDIR/bwreps_summ.npz -c spearman -p heatmap -o $BASEDIR/timecourse_bwreps_summ_heatmap.pdf
+#plotPCA -in $BASEDIR/bwreps_summ.npz -o $BASEDIR/timecourse_bwreps_summ_PCA.pdf
 
 
 #4.23.25 Original: all of this is TE specific, I don't need those
