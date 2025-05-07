@@ -248,28 +248,28 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 ##TE ann is all transposoable elements in genome with H3K9me3
 
 #5.7.25 Get gene list of H3K9me3 annotated peaks within 5kb of TSS and peaks outside the 5kb region
-module load Homer/5.1-foss-2023a-R-4.3.2
-module load BEDtools
-curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
-mkdir $BASEDIR/peaks/ann
+#module load Homer/5.1-foss-2023a-R-4.3.2
+#module load BEDtools
+#curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
+#mkdir $BASEDIR/peaks/ann
 
-for infile in $BASEDIR/peaks/*final.bed
-do
-  base=$( basename ${infile} final.bed)
-  annotatePeaks.pl $infile danRer11 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
-done
+#for infile in $BASEDIR/peaks/*final.bed
+#do
+#  base=$( basename ${infile} final.bed)
+#  annotatePeaks.pl $infile danRer11 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
+#done
 
-for infile in $BASEDIR/peaks/ann/*maskann.txt
-do
-  base=$(basename ${infile} .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $BASEDIR/peaks/ann/$base.5000bp_ann.txt
-done
+#for infile in $BASEDIR/peaks/ann/*maskann.txt
+#do
+#  base=$(basename ${infile} .maskann.txt)
+#  awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $BASEDIR/peaks/ann/$base.5000bp_ann.txt
+#done
 
-for infile in $OUTDIR/peaks/ann/*maskann.txt
- do
-   base=$(basename ${infile} .maskann.txt)
-   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $BASEDIR/peaks/ann/${base}.MOREthan5000bp.bed
- done
+#for infile in $OUTDIR/peaks/ann/*maskann.txt
+# do
+#   base=$(basename ${infile} .maskann.txt)
+#   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $BASEDIR/peaks/ann/${base}.MOREthan5000bp.bed
+# done
 ###  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann/$base.1000bp_ann.txt. The 1000 is to get within 1kb of a gene
 #Did not have annotated TE file uploaded
 
@@ -298,6 +298,137 @@ for infile in $OUTDIR/peaks/ann/*maskann.txt
 #plotCorrelation -in $BASEDIR/bwreps_summ.npz -c spearman -p heatmap -o $BASEDIR/timecourse_bwreps_summ_heatmap.pdf
 #plotPCA -in $BASEDIR/bwreps_summ.npz -o $BASEDIR/timecourse_bwreps_summ_PCA.pdf
 
+## 5.7.25 making bws of the mean of the replicates for profile plots
+module load deepTools/3.5.2-foss-2022a
+mkdir $OUTDIR/bws/bwscomp/
+bigwigCompare \
+  -b1 $OUTDIR/bws/2hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/2hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.5:0.5 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/2hpf_K9_AVG.bw
+
+# Step 1: Combine replicate 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/K9abcam_2.5hpf_1.bw \
+  -b2 $OUTDIR/bws/K9abcam_2.5hpf_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw
+
+# Step 2: Add replicate 3 to the combined 1+2 (again scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw \
+  -b2 $OUTDIR/bws/K9abcam_2.5hpf_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_AVG.bw
+
+  # Step 1: Combine replicates 1 and 2, each scaled to 1/3
+bigwigCompare \
+  -b1 $OUTDIR/bws/3hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/3hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw
+
+# Step 2: Add replicate 3, also scaled to 1/3
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw \
+  -b2 $OUTDIR/bws/3hpf_K9_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3hpf_K9_AVG.bw
+
+# Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/3.5hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/3.5hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw
+
+# Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw \
+  -b2 $OUTDIR/bws/3.5hpf_K9_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_AVG.bw
+
+# Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/4hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/4hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw
+
+# Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw \
+  -b2 $OUTDIR/bws/4hpf_K9_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/4hpf_K9_AVG.bw
+
+# Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/K9abcam_4.5hpf_1.bw \
+  -b2 $OUTDIR/bws/K9abcam_4.5hpf_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw
+
+# Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw \
+  -b2 $OUTDIR/bws/K9abcam_4.5hpf_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_AVG.bw
+
+# Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/K9abcam_24hpf_1.bw \
+  -b2 $OUTDIR/bws/K9abcam_24hpf_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw
+
+# Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw \
+  -b2 $OUTDIR/bws/K9abcam_24hpf_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
 
 #4.23.25 Original: all of this is TE specific, I don't need those
 #TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
