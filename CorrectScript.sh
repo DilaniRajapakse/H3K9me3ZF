@@ -299,136 +299,204 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #plotPCA -in $BASEDIR/bwreps_summ.npz -o $BASEDIR/timecourse_bwreps_summ_PCA.pdf
 
 ## 5.7.25 making bws of the mean of the replicates for profile plots
-module load deepTools/3.5.2-foss-2022a
-mkdir $OUTDIR/bws/bwscomp/
-bigwigCompare \
-  -b1 $OUTDIR/bws/2hpf_K9_1.bw \
-  -b2 $OUTDIR/bws/2hpf_K9_2.bw \
-  --operation add \
-  --scaleFactors 0.5:0.5 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/2hpf_K9_AVG.bw
+#module load deepTools/3.5.2-foss-2022a
+#mkdir $OUTDIR/bws/bwscomp/
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/2hpf_K9_1.bw \
+#  -b2 $OUTDIR/bws/2hpf_K9_2.bw \
+#  --operation add \
+#  --scaleFactors 0.5:0.5 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/2hpf_K9_AVG.bw
 
 # Step 1: Combine replicate 1 and 2 (each scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/K9abcam_2.5hpf_1.bw \
-  -b2 $OUTDIR/bws/K9abcam_2.5hpf_2.bw \
-  --operation add \
-  --scaleFactors 0.333:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/K9abcam_2.5hpf_1.bw \
+#  -b2 $OUTDIR/bws/K9abcam_2.5hpf_2.bw \
+#  --operation add \
+#  --scaleFactors 0.333:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw
 
 # Step 2: Add replicate 3 to the combined 1+2 (again scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw \
-  -b2 $OUTDIR/bws/K9abcam_2.5hpf_3.bw \
-  --operation add \
-  --scaleFactors 1:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_AVG.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw \
+#  -b2 $OUTDIR/bws/K9abcam_2.5hpf_3.bw \
+#  --operation add \
+#  --scaleFactors 1:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_AVG.bw
 
-  # Step 1: Combine replicates 1 and 2, each scaled to 1/3
-bigwigCompare \
-  -b1 $OUTDIR/bws/3hpf_K9_1.bw \
-  -b2 $OUTDIR/bws/3hpf_K9_2.bw \
-  --operation add \
-  --scaleFactors 0.333:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw
+# Step 1: Combine replicates 1 and 2, each scaled to 1/3
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/3hpf_K9_1.bw \
+#  -b2 $OUTDIR/bws/3hpf_K9_2.bw \
+#  --operation add \
+#  --scaleFactors 0.333:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw
 
 # Step 2: Add replicate 3, also scaled to 1/3
-bigwigCompare \
-  -b1 $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw \
-  -b2 $OUTDIR/bws/3hpf_K9_3.bw \
-  --operation add \
-  --scaleFactors 1:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/3hpf_K9_AVG.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw \
+#  -b2 $OUTDIR/bws/3hpf_K9_3.bw \
+#  --operation add \
+#  --scaleFactors 1:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/3hpf_K9_AVG.bw
 
 # Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/3.5hpf_K9_1.bw \
-  -b2 $OUTDIR/bws/3.5hpf_K9_2.bw \
-  --operation add \
-  --scaleFactors 0.333:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/3.5hpf_K9_1.bw \
+#  -b2 $OUTDIR/bws/3.5hpf_K9_2.bw \
+#  --operation add \
+#  --scaleFactors 0.333:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw
 
 # Step 2: Add replicate 3 (also scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw \
-  -b2 $OUTDIR/bws/3.5hpf_K9_3.bw \
-  --operation add \
-  --scaleFactors 1:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_AVG.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw \
+#  -b2 $OUTDIR/bws/3.5hpf_K9_3.bw \
+#  --operation add \
+#  --scaleFactors 1:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_AVG.bw
 
 # Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/4hpf_K9_1.bw \
-  -b2 $OUTDIR/bws/4hpf_K9_2.bw \
-  --operation add \
-  --scaleFactors 0.333:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/4hpf_K9_1.bw \
+#  -b2 $OUTDIR/bws/4hpf_K9_2.bw \
+#  --operation add \
+#  --scaleFactors 0.333:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw
 
 # Step 2: Add replicate 3 (also scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw \
-  -b2 $OUTDIR/bws/4hpf_K9_3.bw \
-  --operation add \
-  --scaleFactors 1:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/4hpf_K9_AVG.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw \
+#  -b2 $OUTDIR/bws/4hpf_K9_3.bw \
+#  --operation add \
+#  --scaleFactors 1:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/4hpf_K9_AVG.bw
 
 # Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/K9abcam_4.5hpf_1.bw \
-  -b2 $OUTDIR/bws/K9abcam_4.5hpf_2.bw \
-  --operation add \
-  --scaleFactors 0.333:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/K9abcam_4.5hpf_1.bw \
+#  -b2 $OUTDIR/bws/K9abcam_4.5hpf_2.bw \
+#  --operation add \
+#  --scaleFactors 0.333:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw
 
 # Step 2: Add replicate 3 (also scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw \
-  -b2 $OUTDIR/bws/K9abcam_4.5hpf_3.bw \
-  --operation add \
-  --scaleFactors 1:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_AVG.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw \
+#  -b2 $OUTDIR/bws/K9abcam_4.5hpf_3.bw \
+#  --operation add \
+#  --scaleFactors 1:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_AVG.bw
 
 # Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/K9abcam_24hpf_1.bw \
-  -b2 $OUTDIR/bws/K9abcam_24hpf_2.bw \
-  --operation add \
-  --scaleFactors 0.333:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/K9abcam_24hpf_1.bw \
+#  -b2 $OUTDIR/bws/K9abcam_24hpf_2.bw \
+#  --operation add \
+#  --scaleFactors 0.333:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw
 
 # Step 2: Add replicate 3 (also scaled to 1/3)
-bigwigCompare \
-  -b1 $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw \
-  -b2 $OUTDIR/bws/K9abcam_24hpf_3.bw \
-  --operation add \
-  --scaleFactors 1:0.333 \
-  -bs 10 \
-  -p 20 \
-  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
+#bigwigCompare \
+#  -b1 $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw \
+#  -b2 $OUTDIR/bws/K9abcam_24hpf_3.bw \
+#  --operation add \
+#  --scaleFactors 1:0.333 \
+#  -bs 10 \
+#  -p 20 \
+#  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
+
+#5.7.25
+module load BEDTools/2.31.0-GCC-12.3.0
+module load Homer/5.1-foss-2023a-R-4.3.2 
+mkdir $OUTDIR/gene_overlap_with_TE
+PEAKS=$OUTDIR/peaks
+TE_ANN=$OUTDIR/peaks/TEann_35_0.1filt.bed
+REF_ANN=$OUTDIR/refann.gtf
+
+BIN_DIR=$OUTDIR/TE_overlap_bins
+mkdir -p $BIN_DIR
+for infile in $PEAKS/*final.bed
+do
+  base=$(basename $infile _final.bed)
+  echo "Processing $base..."
+
+  ## Bin 1: 0% overlap
+  mkdir -p $BIN_DIR/${base}_bin_000
+  bedtools intersect -a $infile -b $TE_ANN -v > $BIN_DIR/${base}_bin_000/${base}_TEbin_000.bed
+
+  ## Bin 2: >0% and ≤10%
+  mkdir -p $BIN_DIR/${base}_bin_010
+  bedtools intersect -a $infile -b $TE_ANN -f 0.0001 -v > $BIN_DIR/tmp_lessThan10.bed
+  bedtools intersect -a $infile -b $TE_ANN -f 0.10 > $BIN_DIR/tmp_moreThan10.bed
+  bedtools intersect -a $infile -b $BIN_DIR/tmp_lessThan10.bed -v > $BIN_DIR/tmp_GT0_LE10.bed
+  bedtools intersect -a $BIN_DIR/tmp_GT0_LE10.bed -b $BIN_DIR/tmp_moreThan10.bed -v > $BIN_DIR/${base}_bin_010/${base}_TEbin_010.bed
+  rm $BIN_DIR/tmp_lessThan10.bed $BIN_DIR/tmp_moreThan10.bed $BIN_DIR/tmp_GT0_LE10.bed
+
+  ## Bin 3: >10% and ≤25%
+  mkdir -p $BIN_DIR/${base}_bin_025
+  bedtools intersect -a $infile -b $TE_ANN -f 0.10 -u > $BIN_DIR/tmp_moreThan10.bed
+  bedtools intersect -a $infile -b $TE_ANN -f 0.25 > $BIN_DIR/tmp_moreThan25.bed
+  bedtools intersect -a $BIN_DIR/tmp_moreThan10.bed -b $BIN_DIR/tmp_moreThan25.bed -v > $BIN_DIR/${base}_bin_025/${base}_TEbin_025.bed
+  rm $BIN_DIR/tmp_moreThan10.bed $BIN_DIR/tmp_moreThan25.bed
+
+  ## Bin 4: >25% and ≤50% 
+  mkdir -p $BIN_DIR/${base}_bin_050
+  bedtools intersect -a $infile -b $TE_ANN -f 0.25 -u > $BIN_DIR/tmp_moreThan25.bed
+  bedtools intersect -a $infile -b $TE_ANN -f 0.50 > $BIN_DIR/tmp_moreThan50.bed
+  bedtools intersect -a $BIN_DIR/tmp_moreThan25.bed -b $BIN_DIR/tmp_moreThan50.bed -v > $BIN_DIR/${base}_bin_050/${base}_TEbin_050.bed
+  rm $BIN_DIR/tmp_moreThan25.bed $BIN_DIR/tmp_moreThan50.bed
+
+  ## Bin 5: >50% and ≤75%
+  mkdir -p $BIN_DIR/${base}_bin_075
+  bedtools intersect -a $infile -b $TE_ANN -f 0.50 -u > $BIN_DIR/tmp_moreThan50.bed
+  bedtools intersect -a $infile -b $TE_ANN -f 0.75 > $BIN_DIR/tmp_moreThan75.bed
+  bedtools intersect -a $BIN_DIR/tmp_moreThan50.bed -b $BIN_DIR/tmp_moreThan75.bed -v > $BIN_DIR/${base}_bin_075/${base}_TEbin_075.bed
+  rm $BIN_DIR/tmp_moreThan50.bed $BIN_DIR/tmp_moreThan75.bed
+
+  ## Bin 6: >75% and ≤100% 
+  mkdir -p $BIN_DIR/${base}_bin_100
+  bedtools intersect -a $infile -b $TE_ANN -f 0.75 -u > $BIN_DIR/tmp_moreThan75.bed
+  annotate_input=$BIN_DIR/tmp_moreThan75.bed
+
+  #Annotate all binned peaks and filter for ±5kb from TSS
+  for binfile in $BIN_DIR/${base}_bin_*/${base}_TEbin_*.bed
+  do
+    bindir=$(dirname "$binfile")
+    binbase=$(basename $binfile .bed)
+    annotatePeaks.pl $binfile danRer11 -gtf $GTF > $bindir/${binbase}.ann.txt
+    awk -F'\t' 'sqrt($10*$10) <=5000' $bindir/${binbase}.ann.txt > $bindir/${binbase}.within5kb.txt
+
+    #get list of unique gene names
+    cut -f2 $bindir/${binbase}.within5kb.txt | tail -n +2 | sort | uniq > $bindir/${binbase}_genes.txt
+  done
+
+  rm $BIN_DIR/tmp_moreThan75.bed
+done
 
 #4.23.25 Original: all of this is TE specific, I don't need those
 #TEFILE="$BASEDIR/peaks/TEann_35_0.1filt.bed"
