@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=NewH3K9me3	                        # Job name
+#SBATCH --job-name=Peakswithin5kb	                        # Job name
 #SBATCH --partition=batch		                            # Partition (queue) name
 #SBATCH --ntasks=1	                                # Single task job
 #SBATCH --cpus-per-task=24		                            # Number of cores per task - match this to the num_threads used by BLAST
