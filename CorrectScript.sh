@@ -248,8 +248,8 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 ##TE ann is all transposoable elements in genome with H3K9me3
 
 #5.7.25 Get gene list of H3K9me3 annotated peaks within 5kb of TSS and peaks outside the 5kb region
-module load Homer (Homer/5.1-foss-2023a-R-4.3.2)
-module load BEDtools (pybedtools/0.9.1-foss-2023a)
+module load Homer/5.1-foss-2023a-R-4.3.2
+module load BEDtools
 curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
 mkdir $BASEDIR/peaks/ann
 
