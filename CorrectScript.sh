@@ -522,17 +522,16 @@ REF_ANN=$OUTDIR/refann.gtf
 
 ##5.8.25 Collects all your _genes.txt files from TE bins, Builds a binary matrix (genes × bin/timepoint), Uses mygene to map numeric gene IDs to symbols
 ##Merges symbols and outputs the final matrix 
-module load mygene/3.2.2-foss-2022a
+module load Python/3.10.4-GCCcore-11.3.0
+
 python <<EOF
 import os
 import pandas as pd
 
-# === CONFIGURATION ===
 base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins"
 file_suffix = "_within5kb.txt"
 output_matrix = "gene_symbol_bin_timepoint_matrix.csv"
 
-# === STEP 1: FIND ALL *.within5kb.txt FILES ===
 gene_files = []
 for root, dirs, files in os.walk(base_dir):
     for file in files:
@@ -541,25 +540,29 @@ for root, dirs, files in os.walk(base_dir):
             label = os.path.basename(file).replace(file_suffix, "")
             gene_files.append((label, full_path))
 
-# === STEP 2: BUILD SYMBOL × BIN/TIMEPOINT MATRIX ===
 gene_matrix = {}
-
 for label, path in gene_files:
     with open(path, 'r') as f:
-        next(f)  # skip header
+        header = f.readline().strip().split('\t')
+        try:
+            gene_name_index = header.index("Gene Name")
+        except ValueError:
+            print(f"Gene Name column not found in: {path}")
+            continue
+
         for line in f:
             fields = line.strip().split('\t')
-            if len(fields) > 1:
-                gene = fields[1]
-                if gene not in gene_matrix:
-                    gene_matrix[gene] = {}
-                gene_matrix[gene][label] = 1
+            if len(fields) > gene_name_index:
+                gene = fields[gene_name_index]
+                if gene not in ["NA", "", "."]:
+                    if gene not in gene_matrix:
+                        gene_matrix[gene] = {}
+                    gene_matrix[gene][label] = 1
 
-# Convert to DataFrame
-symbol_df = pd.DataFrame.from_dict(gene_matrix, orient='index').fillna(0).astype(int)
-symbol_df.index.name = "Gene_Symbol"
-symbol_df = symbol_df.sort_index(axis=1).sort_index(axis=0)
-symbol_df.to_csv(output_matrix)
+df = pd.DataFrame.from_dict(gene_matrix, orient='index').fillna(0).astype(int)
+df.index.name = "Gene_Symbol"
+df = df.sort_index(axis=1).sort_index(axis=0)
+df.to_csv(output_matrix)
 
-print(f"Matrix written to {output_matrix}")
+print("Matrix saved to:", output_matrix)
 EOF
