@@ -526,51 +526,40 @@ module load mygene/3.2.2-foss-2022a
 python <<EOF
 import os
 import pandas as pd
-from mygene import MyGeneInfo
 
+# === CONFIGURATION ===
 base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins"
-gene_file_suffix = "_genes.txt"
-mapping_output = "mapped_gene_symbols_zebrafish.csv"
-final_matrix_output = "gene_symbol_bin_timepoint_matrix.csv"
+file_suffix = "_within5kb.txt"
+output_matrix = "gene_symbol_bin_timepoint_matrix.csv"
 
-# Step 1: Collect gene files
+# === STEP 1: FIND ALL *.within5kb.txt FILES ===
 gene_files = []
 for root, dirs, files in os.walk(base_dir):
     for file in files:
-        if file.endswith(gene_file_suffix):
+        if file.endswith(file_suffix):
             full_path = os.path.join(root, file)
-            label = os.path.basename(file).replace(gene_file_suffix, "")
+            label = os.path.basename(file).replace(file_suffix, "")
             gene_files.append((label, full_path))
 
-# Step 2: Build gene ID matrix
+# === STEP 2: BUILD SYMBOL × BIN/TIMEPOINT MATRIX ===
 gene_matrix = {}
+
 for label, path in gene_files:
     with open(path, 'r') as f:
-        genes = set(line.strip() for line in f if line.strip())
-        for gene in genes:
-            if gene not in gene_matrix:
-                gene_matrix[gene] = {}
-            gene_matrix[gene][label] = 1
+        next(f)  # skip header
+        for line in f:
+            fields = line.strip().split('\t')
+            if len(fields) > 1:
+                gene = fields[1]
+                if gene not in gene_matrix:
+                    gene_matrix[gene] = {}
+                gene_matrix[gene][label] = 1
 
-id_matrix = pd.DataFrame.from_dict(gene_matrix, orient='index').fillna(0).astype(int)
-id_matrix.index.name = "Gene_ID"
+# Convert to DataFrame
+symbol_df = pd.DataFrame.from_dict(gene_matrix, orient='index').fillna(0).astype(int)
+symbol_df.index.name = "Gene_Symbol"
+symbol_df = symbol_df.sort_index(axis=1).sort_index(axis=0)
+symbol_df.to_csv(output_matrix)
 
-# Step 3: Map IDs to symbols
-print("Mapping gene IDs to symbols...")
-mg = MyGeneInfo()
-query_ids = id_matrix.index.tolist()
-results = mg.querymany(query_ids, scopes="entrezgene", fields="symbol", species="zebrafish", as_dataframe=True)
-
-mapped = results[~results.get('notfound', False) & results['symbol'].notnull()][['symbol']]
-mapped = mapped.rename_axis("Gene_ID").reset_index()
-mapped.to_csv(mapping_output, index=False)
-
-# Step 4: Merge symbols into matrix
-print("Merging mapped gene symbols into matrix...")
-merged = id_matrix.reset_index().merge(mapped, on="Gene_ID", how="inner")
-symbol_matrix = merged.set_index("symbol").drop(columns=["Gene_ID"])
-symbol_matrix = symbol_matrix.sort_index(axis=1).sort_index(axis=0)
-symbol_matrix.to_csv(final_matrix_output)
-
-print("Matrix saved to:", final_matrix_output)
+print(f"Matrix written to {output_matrix}")
 EOF
