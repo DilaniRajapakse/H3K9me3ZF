@@ -522,7 +522,7 @@ REF_ANN=$OUTDIR/refann.gtf
 
 ##5.8.25 Collects all your _genes.txt files from TE bins, Builds a binary matrix (genes × bin/timepoint), Uses mygene to map numeric gene IDs to symbols
 ##Merges symbols and outputs the final matrix 
-module load Python/3.10.4-GCCcore-11.3.0
+module load SciPy-bundle/2024.05-gfbf-2024a
 
 python <<EOF
 import os
