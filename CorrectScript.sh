@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=Peakswithin5kb	                        # Job name
+#SBATCH --job-name=BinningGenes	                        # Job name
 #SBATCH --partition=batch		                            # Partition (queue) name
 #SBATCH --ntasks=1	                                # Single task job
 #SBATCH --cpus-per-task=24		                            # Number of cores per task - match this to the num_threads used by BLAST
@@ -435,7 +435,7 @@ module load BEDTools/2.31.0-GCC-12.3.0
 module load Homer/5.1-foss-2023a-R-4.3.2 
 
 PEAKS=$OUTDIR/peaks
-TE_ANN=$OUTDIR/peaks/TEann_35_0.1filt.bed
+TE_ANN=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed 
 REF_ANN=$OUTDIR/refann.gtf
 
 BIN_DIR=$OUTDIR/TE_overlap_bins
