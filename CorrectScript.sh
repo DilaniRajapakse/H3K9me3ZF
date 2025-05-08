@@ -440,74 +440,61 @@ REF_ANN=$OUTDIR/refann.gtf
 
 BIN_DIR=$OUTDIR/TE_overlap_bins
 mkdir -p $BIN_DIR
+SUMMARY_FILE=$BIN_DIR/bin_summary.tsv
+echo -e "sample\tbin\tcount" > $SUMMARY_FILE
 
 for infile in $PEAKS/*final.bed
 do
   base=$(basename $infile _final.bed)
   echo "Processing $base..."
 
-  # Temp file to hold peaks not yet assigned to a bin
   remaining_peaks=$BIN_DIR/${base}_remaining.bed
   cp $infile $remaining_peaks
 
-  # --- Bin 1: 0% overlap ---
-  mkdir -p $BIN_DIR/${base}_bin_000
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -v > $BIN_DIR/${base}_bin_000/${base}_TEbin_000.bed
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -u > $BIN_DIR/tmp_used.bed
-  bedtools intersect -a $remaining_peaks -b $BIN_DIR/tmp_used.bed -v > $BIN_DIR/tmp_next.bed
-  mv $BIN_DIR/tmp_next.bed $remaining_peaks
+  # Define bin ranges and labels
+  declare -a BINS=(
+    "000 0 0"
+    "010 0.0001 0.10"
+    "025 0.10 0.25"
+    "050 0.25 0.50"
+    "075 0.50 0.75"
+    "100 0.75 1.00"
+  )
 
-  # --- Bin 2: >0% and ≤10% ---
-  mkdir -p $BIN_DIR/${base}_bin_010
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.0001 -u > $BIN_DIR/tmp_overlap_gt0.bed
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.10 -v > $BIN_DIR/tmp_overlap_le10.bed
-  bedtools intersect -a $BIN_DIR/tmp_overlap_gt0.bed -b $BIN_DIR/tmp_overlap_le10.bed > $BIN_DIR/${base}_bin_010/${base}_TEbin_010.bed
-  bedtools intersect -a $remaining_peaks -b $BIN_DIR/${base}_bin_010/${base}_TEbin_010.bed -v > $BIN_DIR/tmp_next.bed
-  mv $BIN_DIR/tmp_next.bed $remaining_peaks
-  rm $BIN_DIR/tmp_overlap_gt0.bed $BIN_DIR/tmp_overlap_le10.bed
-
-  # --- Bin 3: >10% and ≤25% ---
-  mkdir -p $BIN_DIR/${base}_bin_025
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.10 -u > $BIN_DIR/tmp_gt10.bed
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.25 -v > $BIN_DIR/tmp_le25.bed
-  bedtools intersect -a $BIN_DIR/tmp_gt10.bed -b $BIN_DIR/tmp_le25.bed > $BIN_DIR/${base}_bin_025/${base}_TEbin_025.bed
-  bedtools intersect -a $remaining_peaks -b $BIN_DIR/${base}_bin_025/${base}_TEbin_025.bed -v > $BIN_DIR/tmp_next.bed
-  mv $BIN_DIR/tmp_next.bed $remaining_peaks
-  rm $BIN_DIR/tmp_gt10.bed $BIN_DIR/tmp_le25.bed
-
-  # --- Bin 4: >25% and ≤50% ---
-  mkdir -p $BIN_DIR/${base}_bin_050
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.25 -u > $BIN_DIR/tmp_gt25.bed
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.50 -v > $BIN_DIR/tmp_le50.bed
-  bedtools intersect -a $BIN_DIR/tmp_gt25.bed -b $BIN_DIR/tmp_le50.bed > $BIN_DIR/${base}_bin_050/${base}_TEbin_050.bed
-  bedtools intersect -a $remaining_peaks -b $BIN_DIR/${base}_bin_050/${base}_TEbin_050.bed -v > $BIN_DIR/tmp_next.bed
-  mv $BIN_DIR/tmp_next.bed $remaining_peaks
-  rm $BIN_DIR/tmp_gt25.bed $BIN_DIR/tmp_le50.bed
-
-  # --- Bin 5: >50% and ≤75% ---
-  mkdir -p $BIN_DIR/${base}_bin_075
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.50 -u > $BIN_DIR/tmp_gt50.bed
-  bedtools intersect -a $remaining_peaks -b $TE_ANN -f 0.75 -v > $BIN_DIR/tmp_le75.bed
-  bedtools intersect -a $BIN_DIR/tmp_gt50.bed -b $BIN_DIR/tmp_le75.bed > $BIN_DIR/${base}_bin_075/${base}_TEbin_075.bed
-  bedtools intersect -a $remaining_peaks -b $BIN_DIR/${base}_bin_075/${base}_TEbin_075.bed -v > $BIN_DIR/tmp_next.bed
-  mv $BIN_DIR/tmp_next.bed $remaining_peaks
-  rm $BIN_DIR/tmp_gt50.bed $BIN_DIR/tmp_le75.bed
-
-  # --- Bin 6: >75% ---
-  mkdir -p $BIN_DIR/${base}_bin_100
-  mv $remaining_peaks $BIN_DIR/${base}_bin_100/${base}_TEbin_100.bed
-
-  # Annotate each bin
-  for binfile in $BIN_DIR/${base}_bin_*/${base}_TEbin_*.bed
+  for entry in "${BINS[@]}"
   do
-    bindir=$(dirname "$binfile")
-    binbase=$(basename $binfile .bed)
-    annotatePeaks.pl $binfile danRer11 -gtf $GTF > $bindir/${binbase}.ann.txt
-    awk -F'\t' 'sqrt($10*$10) <=5000' $bindir/${binbase}.ann.txt > $bindir/${binbase}.within5kb.txt
-    cut -f2 $bindir/${binbase}.within5kb.txt | tail -n +2 | sort | uniq > $bindir/${binbase}_genes.txt
+    read -r label min max <<< "$entry"
+    bindir=$BIN_DIR/${base}_bin_${label}
+    mkdir -p $bindir
+    outfile=$bindir/${base}_TEbin_${label}.bed
+
+    if [[ "$label" == "000" ]]; then
+      bedtools intersect -a $remaining_peaks -b $TE_ANN -v > $outfile
+    elif [[ "$label" == "100" ]]; then
+      cp $remaining_peaks $outfile
+    else
+      bedtools intersect -a $remaining_peaks -b $TE_ANN -f $min -u > $BIN_DIR/tmp_min.bed
+      bedtools intersect -a $remaining_peaks -b $TE_ANN -f $max -v > $BIN_DIR/tmp_max.bed
+      bedtools intersect -a $BIN_DIR/tmp_min.bed -b $BIN_DIR/tmp_max.bed > $outfile
+      rm $BIN_DIR/tmp_min.bed $BIN_DIR/tmp_max.bed
+    fi
+
+    # Remove binned peaks from remaining_peaks
+    bedtools intersect -a $remaining_peaks -b $outfile -v > $BIN_DIR/tmp_next.bed
+    mv $BIN_DIR/tmp_next.bed $remaining_peaks
+
+    # Log number of peaks in each bin
+    count=$(wc -l < $outfile)
+    echo -e "$base\t$label\t$count" >> $SUMMARY_FILE
+
+    # Annotate and extract genes within ±5kb of TSS
+    annotatePeaks.pl $outfile danRer11 -gtf $GTF > $bindir/${base}_TEbin_${label}.ann.txt
+    awk -F'\t' 'sqrt($10*$10) <=5000' $bindir/${base}_TEbin_${label}.ann.txt > $bindir/${base}_TEbin_${label}.within5kb.txt
+    cut -f2 $bindir/${base}_TEbin_${label}.within5kb.txt | tail -n +2 | sort | uniq > $bindir/${base}_TEbin_${label}_genes.txt
   done
 
 done
+
 
 
 #4.23.25 Original: all of this is TE specific, I don't need those
