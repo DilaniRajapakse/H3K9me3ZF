@@ -430,7 +430,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #  -p 20 \
 #  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
 
-#5.7.25- 5.8.25
+#5.7.25- 5.8.25 Each row reports the number of peaks that had a certain percentage overlap with transposable elements
 module load BEDTools/2.31.0-GCC-12.3.0
 module load Homer/5.1-foss-2023a-R-4.3.2 
 
@@ -438,62 +438,62 @@ PEAKS=$OUTDIR/peaks
 TE_ANN=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed 
 REF_ANN=$OUTDIR/refann.gtf
 
-BIN_DIR=$OUTDIR/TE_overlap_bins
-mkdir -p $BIN_DIR
-SUMMARY_FILE=$BIN_DIR/bin_summary.tsv
-echo -e "sample\tbin\tcount" > $SUMMARY_FILE
+#BIN_DIR=$OUTDIR/TE_overlap_bins
+#mkdir -p $BIN_DIR
+#SUMMARY_FILE=$BIN_DIR/bin_summary.tsv
+#echo -e "sample\tbin\tcount" > $SUMMARY_FILE
 
-for infile in $PEAKS/*final.bed
-do
-  base=$(basename $infile _final.bed)
-  echo "Processing $base..."
+#for infile in $PEAKS/*final.bed
+#do
+#  base=$(basename $infile _final.bed)
+#  echo "Processing $base..."
 
-  remaining_peaks=$BIN_DIR/${base}_remaining.bed
-  cp $infile $remaining_peaks
+#  remaining_peaks=$BIN_DIR/${base}_remaining.bed
+#  cp $infile $remaining_peaks
 
   # Define bin ranges and labels
-  declare -a BINS=(
-    "000 0 0"
-    "010 0.0001 0.10"
-    "025 0.10 0.25"
-    "050 0.25 0.50"
-    "075 0.50 0.75"
-    "100 0.75 1.00"
-  )
+#  declare -a BINS=(
+#    "000 0 0"
+#    "010 0.0001 0.10"
+#    "025 0.10 0.25"
+#    "050 0.25 0.50"
+#    "075 0.50 0.75"
+#    "100 0.75 1.00"
+#  )
 
-  for entry in "${BINS[@]}"
-  do
-    read -r label min max <<< "$entry"
-    bindir=$BIN_DIR/${base}_bin_${label}
-    mkdir -p $bindir
-    outfile=$bindir/${base}_TEbin_${label}.bed
+#  for entry in "${BINS[@]}"
+#  do
+#    read -r label min max <<< "$entry"
+#    bindir=$BIN_DIR/${base}_bin_${label}
+#    mkdir -p $bindir
+#    outfile=$bindir/${base}_TEbin_${label}.bed
 
-    if [[ "$label" == "000" ]]; then
-      bedtools intersect -a $remaining_peaks -b $TE_ANN -v > $outfile
-    elif [[ "$label" == "100" ]]; then
-      cp $remaining_peaks $outfile
-    else
-      bedtools intersect -a $remaining_peaks -b $TE_ANN -f $min -u > $BIN_DIR/tmp_min.bed
-      bedtools intersect -a $remaining_peaks -b $TE_ANN -f $max -v > $BIN_DIR/tmp_max.bed
-      bedtools intersect -a $BIN_DIR/tmp_min.bed -b $BIN_DIR/tmp_max.bed > $outfile
-      rm $BIN_DIR/tmp_min.bed $BIN_DIR/tmp_max.bed
-    fi
+#    if [[ "$label" == "000" ]]; then
+#      bedtools intersect -a $remaining_peaks -b $TE_ANN -v > $outfile
+#    elif [[ "$label" == "100" ]]; then
+#      cp $remaining_peaks $outfile
+#    else
+#      bedtools intersect -a $remaining_peaks -b $TE_ANN -f $min -u > $BIN_DIR/tmp_min.bed
+#      bedtools intersect -a $remaining_peaks -b $TE_ANN -f $max -v > $BIN_DIR/tmp_max.bed
+#      bedtools intersect -a $BIN_DIR/tmp_min.bed -b $BIN_DIR/tmp_max.bed > $outfile
+#      rm $BIN_DIR/tmp_min.bed $BIN_DIR/tmp_max.bed
+#    fi
 
     # Remove binned peaks from remaining_peaks
-    bedtools intersect -a $remaining_peaks -b $outfile -v > $BIN_DIR/tmp_next.bed
-    mv $BIN_DIR/tmp_next.bed $remaining_peaks
+#    bedtools intersect -a $remaining_peaks -b $outfile -v > $BIN_DIR/tmp_next.bed
+#    mv $BIN_DIR/tmp_next.bed $remaining_peaks
 
     # Log number of peaks in each bin
-    count=$(wc -l < $outfile)
-    echo -e "$base\t$label\t$count" >> $SUMMARY_FILE
+#    count=$(wc -l < $outfile)
+#    echo -e "$base\t$label\t$count" >> $SUMMARY_FILE
 
     # Annotate and extract genes within ±5kb of TSS
-    annotatePeaks.pl $outfile danRer11 -gtf $GTF > $bindir/${base}_TEbin_${label}.ann.txt
-    awk -F'\t' 'sqrt($10*$10) <=5000' $bindir/${base}_TEbin_${label}.ann.txt > $bindir/${base}_TEbin_${label}.within5kb.txt
-    cut -f2 $bindir/${base}_TEbin_${label}.within5kb.txt | tail -n +2 | sort | uniq > $bindir/${base}_TEbin_${label}_genes.txt
-  done
+#    annotatePeaks.pl $outfile danRer11 -gtf $GTF > $bindir/${base}_TEbin_${label}.ann.txt
+#    awk -F'\t' 'sqrt($10*$10) <=5000' $bindir/${base}_TEbin_${label}.ann.txt > $bindir/${base}_TEbin_${label}.within5kb.txt
+#    cut -f2 $bindir/${base}_TEbin_${label}.within5kb.txt | tail -n +2 | sort | uniq > $bindir/${base}_TEbin_${label}_genes.txt
+#  done
 
-done
+#done
 
 
 
@@ -519,3 +519,58 @@ done
 #  base=$(basename "$infile" .TEann.txt)
 #  awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
 #done
+
+##5.8.25 Collects all your _genes.txt files from TE bins, Builds a binary matrix (genes × bin/timepoint), Uses mygene to map numeric gene IDs to symbols
+##Merges symbols and outputs the final matrix 
+module load mygene/3.2.2-foss-2022a
+python <<EOF
+import os
+import pandas as pd
+from mygene import MyGeneInfo
+
+base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins"
+gene_file_suffix = "_genes.txt"
+mapping_output = "mapped_gene_symbols_zebrafish.csv"
+final_matrix_output = "gene_symbol_bin_timepoint_matrix.csv"
+
+# Step 1: Collect gene files
+gene_files = []
+for root, dirs, files in os.walk(base_dir):
+    for file in files:
+        if file.endswith(gene_file_suffix):
+            full_path = os.path.join(root, file)
+            label = os.path.basename(file).replace(gene_file_suffix, "")
+            gene_files.append((label, full_path))
+
+# Step 2: Build gene ID matrix
+gene_matrix = {}
+for label, path in gene_files:
+    with open(path, 'r') as f:
+        genes = set(line.strip() for line in f if line.strip())
+        for gene in genes:
+            if gene not in gene_matrix:
+                gene_matrix[gene] = {}
+            gene_matrix[gene][label] = 1
+
+id_matrix = pd.DataFrame.from_dict(gene_matrix, orient='index').fillna(0).astype(int)
+id_matrix.index.name = "Gene_ID"
+
+# Step 3: Map IDs to symbols
+print("Mapping gene IDs to symbols...")
+mg = MyGeneInfo()
+query_ids = id_matrix.index.tolist()
+results = mg.querymany(query_ids, scopes="entrezgene", fields="symbol", species="zebrafish", as_dataframe=True)
+
+mapped = results[~results.get('notfound', False) & results['symbol'].notnull()][['symbol']]
+mapped = mapped.rename_axis("Gene_ID").reset_index()
+mapped.to_csv(mapping_output, index=False)
+
+# Step 4: Merge symbols into matrix
+print("Merging mapped gene symbols into matrix...")
+merged = id_matrix.reset_index().merge(mapped, on="Gene_ID", how="inner")
+symbol_matrix = merged.set_index("symbol").drop(columns=["Gene_ID"])
+symbol_matrix = symbol_matrix.sort_index(axis=1).sort_index(axis=0)
+symbol_matrix.to_csv(final_matrix_output)
+
+print("Matrix saved to:", final_matrix_output)
+EOF
