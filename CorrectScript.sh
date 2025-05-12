@@ -521,66 +521,124 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #done
 
 ##5.12.25 Trying again to bin genes 
+#module load BEDTools
+#module load Homer
+
+#PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
+#TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+#REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+#TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene"
+
+#mkdir -p "$TEBIN_DIR"
+
+#for peakfile in "$PEAKS_DIR"/*final.bed; do
+    #base=$(basename "$peakfile" _final.bed)
+
+    #echo "Processing $base"
+
+    # Bin 1: 0% overlap
+    #mkdir -p "$TEBIN_DIR/${base}_bin_000"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -v > "$TEBIN_DIR/${base}_bin_000/${base}_TEbin_000.bed"
+
+    # Bin 2: >0% to ≤10%
+    #mkdir -p "$TEBIN_DIR/${base}_bin_010"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.0001 -u > "$TEBIN_DIR/tmp_gt0.bed"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.10 -u > "$TEBIN_DIR/tmp_gte10.bed"
+    #bedtools intersect -a "$TEBIN_DIR/tmp_gt0.bed" -b "$TEBIN_DIR/tmp_gte10.bed" -v > "$TEBIN_DIR/${base}_bin_010/${base}_TEbin_010.bed"
+    #rm "$TEBIN_DIR/tmp_gt0.bed" "$TEBIN_DIR/tmp_gte10.bed"
+
+    # Bin 3: >10% to ≤25%
+    #mkdir -p "$TEBIN_DIR/${base}_bin_025"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.10 -u > "$TEBIN_DIR/tmp_gte10.bed"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.25 -u > "$TEBIN_DIR/tmp_gte25.bed"
+    #bedtools intersect -a "$TEBIN_DIR/tmp_gte10.bed" -b "$TEBIN_DIR/tmp_gte25.bed" -v > "$TEBIN_DIR/${base}_bin_025/${base}_TEbin_025.bed"
+    #rm "$TEBIN_DIR/tmp_gte10.bed" "$TEBIN_DIR/tmp_gte25.bed"
+
+    # Bin 4: >25% to ≤50%
+    #mkdir -p "$TEBIN_DIR/${base}_bin_050"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.25 -u > "$TEBIN_DIR/tmp_gte25.bed"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.50 -u > "$TEBIN_DIR/tmp_gte50.bed"
+    #bedtools intersect -a "$TEBIN_DIR/tmp_gte25.bed" -b "$TEBIN_DIR/tmp_gte50.bed" -v > "$TEBIN_DIR/${base}_bin_050/${base}_TEbin_050.bed"
+    #rm "$TEBIN_DIR/tmp_gte25.bed" "$TEBIN_DIR/tmp_gte50.bed"
+
+    ## Bin 5: >50% to ≤75%
+    #mkdir -p "$TEBIN_DIR/${base}_bin_075"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.50 -u > "$TEBIN_DIR/tmp_gte50.bed"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.75 -u > "$TEBIN_DIR/tmp_gte75.bed"
+    #bedtools intersect -a "$TEBIN_DIR/tmp_gte50.bed" -b "$TEBIN_DIR/tmp_gte75.bed" -v > "$TEBIN_DIR/${base}_bin_075/${base}_TEbin_075.bed"
+    #rm "$TEBIN_DIR/tmp_gte50.bed" "$TEBIN_DIR/tmp_gte75.bed"
+
+    # Bin 6: >75% to ≤100%
+    #mkdir -p "$TEBIN_DIR/${base}_bin_100"
+    #bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.75 -u > "$TEBIN_DIR/${base}_bin_100/${base}_TEbin_100.bed"
+
+    ## Annotate each bin and extract gene names within ±5kb of TSS
+#    for binfile in "$TEBIN_DIR/${base}_bin_"*/${base}_TEbin_*.bed; do
+#        bindir=$(dirname "$binfile")
+#        binbase=$(basename "$binfile" .bed)
+
+#        annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$bindir/${binbase}.ann.txt"
+#        awk -F'\t' 'NR==1 {print} NR>1 && sqrt($10*$10) <= 5000' "$bindir/${binbase}.ann.txt" > "$bindir/${binbase}.within5kb.txt"
+
+#        cut -f2 "$bindir/${binbase}.within5kb.txt" | tail -n +2 | sort | uniq > "$bindir/${binbase}_genes.txt"
+#    done
+
+#done
+
+##5.12.25
 module load BEDTools
 module load Homer
 
+# === CONFIGURATION ===
 PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
 TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
 REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene"
-
+TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene1"
 mkdir -p "$TEBIN_DIR"
+
+# === BIN THRESHOLDS ===
+declare -a BINS=("000" "010" "025" "050" "075" "100")
+declare -a F_LOWER=(0.00 0.0001 0.10 0.25 0.50 0.75)
+declare -a F_UPPER=(0.00 0.10   0.25 0.50 0.75 1.01)
 
 for peakfile in "$PEAKS_DIR"/*final.bed; do
     base=$(basename "$peakfile" _final.bed)
+    echo "Processing $base..."
 
-    echo "Processing $base"
+    remaining="$peakfile"
 
-    # Bin 1: 0% overlap
-    mkdir -p "$TEBIN_DIR/${base}_bin_000"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -v > "$TEBIN_DIR/${base}_bin_000/${base}_TEbin_000.bed"
+    for i in "${!BINS[@]}"; do
+        bin="${BINS[$i]}"
+        flo="${F_LOWER[$i]}"
+        fhi="${F_UPPER[$i]}"
+        bindir="$TEBIN_DIR/${base}_bin_${bin}"
+        mkdir -p "$bindir"
+        outfile="$bindir/${base}_TEbin_${bin}.bed"
 
-    # Bin 2: >0% to ≤10%
-    mkdir -p "$TEBIN_DIR/${base}_bin_010"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.0001 -u > "$TEBIN_DIR/tmp_gt0.bed"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.10 -u > "$TEBIN_DIR/tmp_gte10.bed"
-    bedtools intersect -a "$TEBIN_DIR/tmp_gt0.bed" -b "$TEBIN_DIR/tmp_gte10.bed" -v > "$TEBIN_DIR/${base}_bin_010/${base}_TEbin_010.bed"
-    rm "$TEBIN_DIR/tmp_gt0.bed" "$TEBIN_DIR/tmp_gte10.bed"
+        # Get peaks within this overlap fraction
+        bedtools intersect -a "$remaining" -b "$TE_ANNOT" -f "$flo" -F 0.01 -u > "$outfile.tmp"
 
-    # Bin 3: >10% to ≤25%
-    mkdir -p "$TEBIN_DIR/${base}_bin_025"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.10 -u > "$TEBIN_DIR/tmp_gte10.bed"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.25 -u > "$TEBIN_DIR/tmp_gte25.bed"
-    bedtools intersect -a "$TEBIN_DIR/tmp_gte10.bed" -b "$TEBIN_DIR/tmp_gte25.bed" -v > "$TEBIN_DIR/${base}_bin_025/${base}_TEbin_025.bed"
-    rm "$TEBIN_DIR/tmp_gte10.bed" "$TEBIN_DIR/tmp_gte25.bed"
+        if [[ "$bin" == "000" ]]; then
+            # Special case: completely non-overlapping
+            bedtools intersect -a "$remaining" -b "$TE_ANNOT" -v > "$outfile"
+        else
+            bedtools intersect -a "$outfile.tmp" -b "$TE_ANNOT" -f "$fhi" -F 0.01 -v > "$outfile"
+        fi
 
-    # Bin 4: >25% to ≤50%
-    mkdir -p "$TEBIN_DIR/${base}_bin_050"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.25 -u > "$TEBIN_DIR/tmp_gte25.bed"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.50 -u > "$TEBIN_DIR/tmp_gte50.bed"
-    bedtools intersect -a "$TEBIN_DIR/tmp_gte25.bed" -b "$TEBIN_DIR/tmp_gte50.bed" -v > "$TEBIN_DIR/${base}_bin_050/${base}_TEbin_050.bed"
-    rm "$TEBIN_DIR/tmp_gte25.bed" "$TEBIN_DIR/tmp_gte50.bed"
+        # Subtract this bin’s peaks from the remaining set
+        remaining_tmp="$bindir/${base}_remaining.bed"
+        bedtools subtract -a "$remaining" -b "$outfile" > "$remaining_tmp"
+        mv "$remaining_tmp" "$remaining"
+        rm -f "$outfile.tmp"
+    done
 
-    # Bin 5: >50% to ≤75%
-    mkdir -p "$TEBIN_DIR/${base}_bin_075"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.50 -u > "$TEBIN_DIR/tmp_gte50.bed"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.75 -u > "$TEBIN_DIR/tmp_gte75.bed"
-    bedtools intersect -a "$TEBIN_DIR/tmp_gte50.bed" -b "$TEBIN_DIR/tmp_gte75.bed" -v > "$TEBIN_DIR/${base}_bin_075/${base}_TEbin_075.bed"
-    rm "$TEBIN_DIR/tmp_gte50.bed" "$TEBIN_DIR/tmp_gte75.bed"
-
-    # Bin 6: >75% to ≤100%
-    mkdir -p "$TEBIN_DIR/${base}_bin_100"
-    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.75 -u > "$TEBIN_DIR/${base}_bin_100/${base}_TEbin_100.bed"
-
-    # Annotate each bin and extract gene names within ±5kb of TSS
+    # === ANNOTATE AND EXTRACT GENES WITHIN ±5kb ===
     for binfile in "$TEBIN_DIR/${base}_bin_"*/${base}_TEbin_*.bed; do
         bindir=$(dirname "$binfile")
         binbase=$(basename "$binfile" .bed)
 
         annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$bindir/${binbase}.ann.txt"
         awk -F'\t' 'NR==1 {print} NR>1 && sqrt($10*$10) <= 5000' "$bindir/${binbase}.ann.txt" > "$bindir/${binbase}.within5kb.txt"
-
         cut -f2 "$bindir/${binbase}.within5kb.txt" | tail -n +2 | sort | uniq > "$bindir/${binbase}_genes.txt"
     done
-
 done
