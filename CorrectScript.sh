@@ -593,7 +593,7 @@ module load Homer
 PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
 TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
 REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene1"
+TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene2"
 mkdir -p "$TEBIN_DIR"
 
 # === BIN THRESHOLDS ===
@@ -619,7 +619,6 @@ for peakfile in "$PEAKS_DIR"/*final.bed; do
         bedtools intersect -a "$remaining" -b "$TE_ANNOT" -f "$flo" -F 0.01 -u > "$outfile.tmp"
 
         if [[ "$bin" == "000" ]]; then
-            # Special case: completely non-overlapping
             bedtools intersect -a "$remaining" -b "$TE_ANNOT" -v > "$outfile"
         else
             bedtools intersect -a "$outfile.tmp" -b "$TE_ANNOT" -f "$fhi" -F 0.01 -v > "$outfile"
@@ -632,13 +631,12 @@ for peakfile in "$PEAKS_DIR"/*final.bed; do
         rm -f "$outfile.tmp"
     done
 
-    # === ANNOTATE AND EXTRACT GENES WITHIN ±5kb ===
+    # === ANNOTATE AND EXTRACT VALID GENE SYMBOLS WITHIN ±5kb ===
     for binfile in "$TEBIN_DIR/${base}_bin_"*/${base}_TEbin_*.bed; do
         bindir=$(dirname "$binfile")
         binbase=$(basename "$binfile" .bed)
 
         annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$bindir/${binbase}.ann.txt"
-        awk -F'\t' 'NR==1 {print} NR>1 && sqrt($10*$10) <= 5000' "$bindir/${binbase}.ann.txt" > "$bindir/${binbase}.within5kb.txt"
-        cut -f2 "$bindir/${binbase}.within5kb.txt" | tail -n +2 | sort | uniq > "$bindir/${binbase}_genes.txt"
+        awk -F'\t' 'NR==1 {for (i=1; i<=NF; i++) if ($i=="Gene Name") col=i} NR>1 && col && sqrt($10*$10) <= 5000 && $col != "NA" && $col != "." {print $col}' "$bindir/${binbase}.ann.txt" | sort | uniq > "$bindir/${binbase}_genes.txt"
     done
 done
