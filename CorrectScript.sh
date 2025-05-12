@@ -431,12 +431,12 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
 
 #5.7.25- 5.8.25 Each row reports the number of peaks that had a certain percentage overlap with transposable elements
-module load BEDTools/2.31.0-GCC-12.3.0
-module load Homer/5.1-foss-2023a-R-4.3.2 
+#module load BEDTools/2.31.0-GCC-12.3.0
+#module load Homer/5.1-foss-2023a-R-4.3.2 
 
-PEAKS=$OUTDIR/peaks
-TE_ANN=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed 
-REF_ANN=$OUTDIR/refann.gtf
+#PEAKS=$OUTDIR/peaks
+#TE_ANN=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed 
+#REF_ANN=$OUTDIR/refann.gtf
 
 #BIN_DIR=$OUTDIR/TE_overlap_bins
 #mkdir -p $BIN_DIR
@@ -520,49 +520,67 @@ REF_ANN=$OUTDIR/refann.gtf
 #  awk '{print $4}' "$infile" | sort | uniq -c | awk '{print $1 "\t" $2}' > "$BASEDIR/${base}_TEcounts2.bed"
 #done
 
-##5.8.25 Collects all your _genes.txt files from TE bins, Builds a binary matrix (genes × bin/timepoint), Uses mygene to map numeric gene IDs to symbols
-##Merges symbols and outputs the final matrix 
-module load SciPy-bundle/2024.05-gfbf-2024a
+##5.12.25 Trying again to bin genes 
+module load BEDTools
+module load Homer
 
-python <<EOF
-import os
-import pandas as pd
+PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
+TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene"
 
-base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins"
-file_suffix = "_within5kb.txt"
-output_matrix = "gene_symbol_bin_timepoint_matrix.csv"
+mkdir -p "$TEBIN_DIR"
 
-gene_files = []
-for root, dirs, files in os.walk(base_dir):
-    for file in files:
-        if file.endswith(file_suffix):
-            full_path = os.path.join(root, file)
-            label = os.path.basename(file).replace(file_suffix, "")
-            gene_files.append((label, full_path))
+for peakfile in "$PEAKS_DIR"/*final.bed; do
+    base=$(basename "$peakfile" _final.bed)
 
-gene_matrix = {}
-for label, path in gene_files:
-    with open(path, 'r') as f:
-        header = f.readline().strip().split('\t')
-        try:
-            gene_name_index = header.index("Gene Name")
-        except ValueError:
-            print(f"Gene Name column not found in: {path}")
-            continue
+    echo "Processing $base"
 
-        for line in f:
-            fields = line.strip().split('\t')
-            if len(fields) > gene_name_index:
-                gene = fields[gene_name_index]
-                if gene not in ["NA", "", "."]:
-                    if gene not in gene_matrix:
-                        gene_matrix[gene] = {}
-                    gene_matrix[gene][label] = 1
+    # Bin 1: 0% overlap
+    mkdir -p "$TEBIN_DIR/${base}_bin_000"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -v > "$TEBIN_DIR/${base}_bin_000/${base}_TEbin_000.bed"
 
-df = pd.DataFrame.from_dict(gene_matrix, orient='index').fillna(0).astype(int)
-df.index.name = "Gene_Symbol"
-df = df.sort_index(axis=1).sort_index(axis=0)
-df.to_csv(output_matrix)
+    # Bin 2: >0% to ≤10%
+    mkdir -p "$TEBIN_DIR/${base}_bin_010"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.0001 -u > "$TEBIN_DIR/tmp_gt0.bed"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.10 -u > "$TEBIN_DIR/tmp_gte10.bed"
+    bedtools intersect -a "$TEBIN_DIR/tmp_gt0.bed" -b "$TEBIN_DIR/tmp_gte10.bed" -v > "$TEBIN_DIR/${base}_bin_010/${base}_TEbin_010.bed"
+    rm "$TEBIN_DIR/tmp_gt0.bed" "$TEBIN_DIR/tmp_gte10.bed"
 
-print("Matrix saved to:", output_matrix)
-EOF
+    # Bin 3: >10% to ≤25%
+    mkdir -p "$TEBIN_DIR/${base}_bin_025"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.10 -u > "$TEBIN_DIR/tmp_gte10.bed"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.25 -u > "$TEBIN_DIR/tmp_gte25.bed"
+    bedtools intersect -a "$TEBIN_DIR/tmp_gte10.bed" -b "$TEBIN_DIR/tmp_gte25.bed" -v > "$TEBIN_DIR/${base}_bin_025/${base}_TEbin_025.bed"
+    rm "$TEBIN_DIR/tmp_gte10.bed" "$TEBIN_DIR/tmp_gte25.bed"
+
+    # Bin 4: >25% to ≤50%
+    mkdir -p "$TEBIN_DIR/${base}_bin_050"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.25 -u > "$TEBIN_DIR/tmp_gte25.bed"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.50 -u > "$TEBIN_DIR/tmp_gte50.bed"
+    bedtools intersect -a "$TEBIN_DIR/tmp_gte25.bed" -b "$TEBIN_DIR/tmp_gte50.bed" -v > "$TEBIN_DIR/${base}_bin_050/${base}_TEbin_050.bed"
+    rm "$TEBIN_DIR/tmp_gte25.bed" "$TEBIN_DIR/tmp_gte50.bed"
+
+    # Bin 5: >50% to ≤75%
+    mkdir -p "$TEBIN_DIR/${base}_bin_075"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.50 -u > "$TEBIN_DIR/tmp_gte50.bed"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.75 -u > "$TEBIN_DIR/tmp_gte75.bed"
+    bedtools intersect -a "$TEBIN_DIR/tmp_gte50.bed" -b "$TEBIN_DIR/tmp_gte75.bed" -v > "$TEBIN_DIR/${base}_bin_075/${base}_TEbin_075.bed"
+    rm "$TEBIN_DIR/tmp_gte50.bed" "$TEBIN_DIR/tmp_gte75.bed"
+
+    # Bin 6: >75% to ≤100%
+    mkdir -p "$TEBIN_DIR/${base}_bin_100"
+    bedtools intersect -a "$peakfile" -b "$TE_ANNOT" -f 0.75 -u > "$TEBIN_DIR/${base}_bin_100/${base}_TEbin_100.bed"
+
+    # Annotate each bin and extract gene names within ±5kb of TSS
+    for binfile in "$TEBIN_DIR/${base}_bin_"*/${base}_TEbin_*.bed; do
+        bindir=$(dirname "$binfile")
+        binbase=$(basename "$binfile" .bed)
+
+        annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$bindir/${binbase}.ann.txt"
+        awk -F'\t' 'NR==1 {print} NR>1 && sqrt($10*$10) <= 5000' "$bindir/${binbase}.ann.txt" > "$bindir/${binbase}.within5kb.txt"
+
+        cut -f2 "$bindir/${binbase}.within5kb.txt" | tail -n +2 | sort | uniq > "$bindir/${binbase}_genes.txt"
+    done
+
+done
