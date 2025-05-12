@@ -590,53 +590,66 @@ module load BEDTools
 module load Homer
 
 # === CONFIGURATION ===
-PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
-TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene2"
-mkdir -p "$TEBIN_DIR"
+#PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
+#TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+#REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+#TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene2"
+#mkdir -p "$TEBIN_DIR"
 
 # === BIN THRESHOLDS ===
-declare -a BINS=("000" "010" "025" "050" "075" "100")
-declare -a F_LOWER=(0.00 0.0001 0.10 0.25 0.50 0.75)
-declare -a F_UPPER=(0.00 0.10   0.25 0.50 0.75 1.01)
+#declare -a BINS=("000" "010" "025" "050" "075" "100")
+#declare -a F_LOWER=(0.00 0.0001 0.10 0.25 0.50 0.75)
+#declare -a F_UPPER=(0.00 0.10   0.25 0.50 0.75 1.01)
 
-for peakfile in "$PEAKS_DIR"/*final.bed; do
-    base=$(basename "$peakfile" _final.bed)
-    echo "Processing $base..."
+#for peakfile in "$PEAKS_DIR"/*final.bed; do
+#    base=$(basename "$peakfile" _final.bed)
+#    echo "Processing $base..."
 
-    remaining="$peakfile"
+#    remaining="$peakfile"
 
-    for i in "${!BINS[@]}"; do
-        bin="${BINS[$i]}"
-        flo="${F_LOWER[$i]}"
-        fhi="${F_UPPER[$i]}"
-        bindir="$TEBIN_DIR/${base}_bin_${bin}"
-        mkdir -p "$bindir"
-        outfile="$bindir/${base}_TEbin_${bin}.bed"
+#    for i in "${!BINS[@]}"; do
+#        bin="${BINS[$i]}"
+#        flo="${F_LOWER[$i]}"
+#        fhi="${F_UPPER[$i]}"
+#        bindir="$TEBIN_DIR/${base}_bin_${bin}"
+#        mkdir -p "$bindir"
+#        outfile="$bindir/${base}_TEbin_${bin}.bed"
 
         # Get peaks within this overlap fraction
-        bedtools intersect -a "$remaining" -b "$TE_ANNOT" -f "$flo" -F 0.01 -u > "$outfile.tmp"
+#        bedtools intersect -a "$remaining" -b "$TE_ANNOT" -f "$flo" -F 0.01 -u > "$outfile.tmp"
 
-        if [[ "$bin" == "000" ]]; then
-            bedtools intersect -a "$remaining" -b "$TE_ANNOT" -v > "$outfile"
-        else
-            bedtools intersect -a "$outfile.tmp" -b "$TE_ANNOT" -f "$fhi" -F 0.01 -v > "$outfile"
-        fi
+#        if [[ "$bin" == "000" ]]; then
+#            bedtools intersect -a "$remaining" -b "$TE_ANNOT" -v > "$outfile"
+#        else
+#            bedtools intersect -a "$outfile.tmp" -b "$TE_ANNOT" -f "$fhi" -F 0.01 -v > "$outfile"
+#        fi
 
         # Subtract this bin’s peaks from the remaining set
-        remaining_tmp="$bindir/${base}_remaining.bed"
-        bedtools subtract -a "$remaining" -b "$outfile" > "$remaining_tmp"
-        mv "$remaining_tmp" "$remaining"
-        rm -f "$outfile.tmp"
-    done
+#        remaining_tmp="$bindir/${base}_remaining.bed"
+#        bedtools subtract -a "$remaining" -b "$outfile" > "$remaining_tmp"
+#        mv "$remaining_tmp" "$remaining"
+#        rm -f "$outfile.tmp"
+#    done
 
     # === ANNOTATE AND EXTRACT VALID GENE SYMBOLS WITHIN ±5kb ===
-    for binfile in "$TEBIN_DIR/${base}_bin_"*/${base}_TEbin_*.bed; do
-        bindir=$(dirname "$binfile")
-        binbase=$(basename "$binfile" .bed)
+#    for binfile in "$TEBIN_DIR/${base}_bin_"*/${base}_TEbin_*.bed; do
+#        bindir=$(dirname "$binfile")
+#        binbase=$(basename "$binfile" .bed)
 
-        annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$bindir/${binbase}.ann.txt"
-        awk -F'\t' 'NR==1 {for (i=1; i<=NF; i++) if ($i=="Gene Name") col=i} NR>1 && col && sqrt($10*$10) <= 5000 && $col != "NA" && $col != "." {print $col}' "$bindir/${binbase}.ann.txt" | sort | uniq > "$bindir/${binbase}_genes.txt"
-    done
+#        annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$bindir/${binbase}.ann.txt"
+#        awk -F'\t' 'NR==1 {for (i=1; i<=NF; i++) if ($i=="Gene Name") col=i} NR>1 && col && sqrt($10*$10) <= 5000 && $col != "NA" && $col != "." {print $col}' "$bindir/${binbase}.ann.txt" | sort | uniq > "$bindir/${binbase}_genes.txt"
+#    done
+#done
+
+TEBIN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/TE_overlap_bins_by_gene2"
+echo -e "Sample\tBin\tGene_Count"
+
+# Loop through all _genes.txt files
+find "$TEBIN_DIR" -name "*_genes.txt" | sort | while read gene_file; do
+    count=$(wc -l < "$gene_file")
+    base=$(basename "$gene_file" _genes.txt)
+    folder=$(basename "$(dirname "$gene_file")")
+    sample=${folder%%_bin_*}
+    bin=${folder##*_bin_}
+    echo -e "${sample}\t${bin}\t${count}"
 done
