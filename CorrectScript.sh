@@ -791,39 +791,36 @@
 ##5.14.25 to make it extract gene names 
 module load mygene/3.2.2-foss-2022a
 
-# Paths
 INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
 OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_symbol_outputs"
-
 mkdir -p "$OUTPUT_DIR"
 
-# Extract gene IDs from within5kb.txt files
-find "$INPUT_DIR" -name "*within5kb.txt" | while read annfile; do
-    label=$(basename "$annfile" .within5kb.txt)
-    out_txt="$OUTPUT_DIR/${label}_genes_mapped.txt"
+# Get all .within5kb.txt files
+find "$INPUT_DIR" -name "*within5kb.txt" | while read file; do
+    base=$(basename "$file" .within5kb.txt)
+    echo "Processing $base"
 
-    echo "Processing $label"
-
-    awk -F'\t' 'NR > 1 && $15 ~ /^ENSDARG/ {print $15}' "$annfile" | sort | uniq > tmp_gene_ids.txt
+    # Extract ENSDARG IDs (column 15), skip header, ignore empty/bad lines
+    awk -F'\t' 'NR > 1 && $15 ~ /^ENSDARG/ { print $15 }' "$file" | sort -u > "$OUTPUT_DIR/${base}_ensids.txt"
 
     python3 <<EOF
 import pandas as pd
 from mygene import MyGeneInfo
 
-with open("tmp_gene_ids.txt") as f:
-    gene_ids = [line.strip() for line in f if line.strip()]
-
 mg = MyGeneInfo()
-results = mg.querymany(gene_ids, scopes="ensembl.gene", fields="symbol", species="zebrafish", as_dataframe=True)
+infile = "$OUTPUT_DIR/${base}_ensids.txt"
+outfile = "$OUTPUT_DIR/${base}_symbol_map.txt"
 
-# Drop entries without symbols or not found
-if "symbol" in results.columns:
-    mapped = results[~results.get("notfound", False) & results["symbol"].notnull()]
-    mapped["symbol"].drop_duplicates().sort_values().to_csv("$out_txt", index=False, header=False)
+with open(infile) as f:
+    ids = [line.strip() for line in f if line.strip()]
+
+if ids:
+    res = mg.querymany(ids, scopes='ensembl.gene', species='zebrafish', fields='symbol', as_dataframe=True)
+    res = res[['symbol']]
+    res.to_csv(outfile, sep='\t')
+    print("Saved:", outfile)
 else:
-    open("$out_txt", "w").close()  # Create empty file if nothing valid
+    print("No valid IDs in", infile)
 EOF
-
-    rm tmp_gene_ids.txt
 
 done
