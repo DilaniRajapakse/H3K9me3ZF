@@ -837,52 +837,55 @@
 #EOF
 
 ## make a summary table
-module load Python
+module load Python/3.10.4
 
-echo "Starting summary table generation..."
-
-python3 << 'EOF'
+python3 <<EOF
 import os
 import pandas as pd
 
-base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_symbols"
-output_file = os.path.join(base_dir, "H3K9me3_TE_Gene_Summary.csv")
+base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+output_dir = os.path.join(base_dir, "summary_output")
+os.makedirs(output_dir, exist_ok=True)
 
-region_categories = ["exon_only", "intron_only", "both"]
-te_bins = ["000", "010", "025", "050", "075", "100"]
+summary_data = []
 
-summary = []
+for root, _, files in os.walk(base_dir):
+    for file in files:
+        if file.endswith("_genes_symbols.txt"):
+            path = os.path.join(root, file)
 
-for dirname in os.listdir(base_dir):
-    dirpath = os.path.join(base_dir, dirname)
-    if not os.path.isdir(dirpath):
-        continue
+            # Expected directory structure: /<timepoint>_K9_<category>/<category>_bin_<bin>_genes_symbols.txt
+            parts = path.split("/")
+            if len(parts) < 2:
+                continue
+            timepoint_dir = parts[-2]
+            timepoint = timepoint_dir.split("_K9_")[0]
+            category = timepoint_dir.split("_K9_")[-1]
+            bin_level = file.split("_bin_")[-1].split("_")[0]
 
-    try:
-        timepoint, region_category = dirname.split("_K9_")
-    except ValueError:
-        continue
+            ens_file = path.replace("_genes_symbols.txt", "_genes.txt")
+            if not os.path.exists(ens_file):
+                continue
 
-    if region_category not in region_categories:
-        continue
+            with open(ens_file) as f1, open(path) as f2:
+                ens_ids = [line.strip() for line in f1 if line.strip()]
+                symbols = [line.strip() for line in f2 if line.strip()]
 
-    for bin_code in te_bins:
-        filename = f"{region_category}_bin_{bin_code}_symbols.txt"
-        filepath = os.path.join(dirpath, filename)
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as f:
-                gene_symbols = [line.strip() for line in f if line.strip()]
-                summary.append({
+            # Align ENSDART/ENSDARG to gene symbol
+            for ens, sym in zip(ens_ids, symbols):
+                summary_data.append({
                     "Timepoint": timepoint,
-                    "Region_Category": region_category,
-                    "TE_Bin": bin_code,
-                    "Gene_Count": len(set(gene_symbols))
+                    "Category": category,
+                    "TE_Overlap_Bin": bin_level,
+                    "ENSDAR_ID": ens,
+                    "Gene_Symbol": sym
                 })
 
-df = pd.DataFrame(summary)
-df = df.sort_values(by=["Timepoint", "Region_Category", "TE_Bin"])
-df.to_csv(output_file, index=False)
-print(f"Summary written to {output_file}")
-EOF
+df = pd.DataFrame(summary_data)
+df = df.sort_values(by=["Timepoint", "Category", "TE_Overlap_Bin", "Gene_Symbol"])
 
-echo "Summary complete."
+summary_path = os.path.join(output_dir, "H3K9me3_TE_ENSID_Symbol_Summary.tsv")
+df.to_csv(summary_path, sep="\t", index=False)
+
+print(f"Summary table saved to: {summary_path}")
+EOF
