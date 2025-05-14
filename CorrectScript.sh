@@ -837,70 +837,43 @@
 #EOF
 
 ## make a summary table
-module load SciPy-bundle
-module load mygene
+base_dir="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+output_dir="${base_dir}/summary_output"
+mkdir -p "$output_dir"
 
-python3 <<EOF
-import os
-import pandas as pd
+summary_file="${output_dir}/H3K9me3_TE_Gene_Symbol_Summary.tsv"
+echo -e "Timepoint\tCategory\tTE_Overlap_Bin\tTE_Overlap_Percent\tENSDAR_ID\tGene_Symbol" > "$summary_file"
 
-# Input directory with categorized gene IDs
-gene_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
-output_dir = os.path.join(gene_dir, "summary_symbol_TE_output")
-os.makedirs(output_dir, exist_ok=True)
+# Map TE overlap bin to descriptive percentage
+percent_label() {
+  case "$1" in
+    000) echo "0%";;
+    010) echo "<=10%";;
+    025) echo "<=25%";;
+    050) echo "<=50%";;
+    075) echo "<=75%";;
+    100) echo "<=100%";;
+    *) echo "Unknown";;
+  esac
+}
 
-# Gene symbol conversion map (pre-generated or mocked-up fallback)
-from mygene import MyGeneInfo
-mg = MyGeneInfo()
+# Process all *_genes.txt and matching *_genes_symbols.txt
+while IFS= read -r genes_file; do
+    symbols_file="${genes_file/_genes.txt/_genes_symbols.txt}"
+    [[ -f "$symbols_file" ]] || continue
 
-def convert_ids(ens_ids):
-    response = mg.querymany(ens_ids, scopes='ensembl.gene', fields='symbol', species='zebrafish')
-    id_to_symbol = {}
-    for entry in response:
-        if 'query' in entry:
-            symbol = entry.get('symbol', '')
-            id_to_symbol[entry['query']] = symbol
-    return id_to_symbol
+    dir_path=$(dirname "$genes_file")
+    dir_name=$(basename "$dir_path")
+    timepoint="${dir_name%%_K9_*}"
+    category="${dir_name#${timepoint}_K9_}"
+    bin_level=$(basename "$genes_file" | grep -oP '(?<=_bin_)[0-9]+')
 
-summary_data = []
+    percent=$(percent_label "$bin_level")
 
-for root, _, files in os.walk(gene_dir):
-    for file in files:
-        if file.endswith("_genes.txt"):
-            file_path = os.path.join(root, file)
+    # Combine and write to summary
+    paste "$genes_file" "$symbols_file" | while IFS=$'\t' read -r ensid symbol; do
+        echo -e "${timepoint}\t${category}\t${bin_level}\t${percent}\t${ensid}\t${symbol}" >> "$summary_file"
+    done
+done < <(find "$base_dir" -name "*_genes.txt" | sort)
 
-            try:
-                timepoint_dir = os.path.basename(os.path.dirname(file_path))
-                timepoint = timepoint_dir.split("_K9_")[0]
-                category = timepoint_dir.split("_K9_")[-1]
-                bin_level = file.split("_bin_")[-1].split("_")[0]
-            except:
-                continue
-
-            with open(file_path) as f:
-                ids = [line.strip() for line in f if line.strip().startswith("ENS")]
-
-            if not ids:
-                continue
-
-            # Convert ENS IDs to gene symbols
-            id_to_symbol = convert_ids(ids)
-
-            for ens_id in ids:
-                summary_data.append({
-                    "Timepoint": timepoint,
-                    "Category": category,
-                    "TE_Overlap_Bin": bin_level,
-                    "ENSDAR_ID": ens_id,
-                    "Gene_Symbol": id_to_symbol.get(ens_id, "")
-                })
-
-# Create and save DataFrame
-if summary_data:
-    df = pd.DataFrame(summary_data)
-    df = df.sort_values(by=["Timepoint", "Category", "TE_Overlap_Bin", "Gene_Symbol"])
-    df.to_csv(os.path.join(output_dir, "H3K9me3_Genes_Symbols_TE_Summary.tsv"), sep="\t", index=False)
-    print("Summary saved.")
-else:
-    print("No data found. Ensure input files exist and contain valid ENSDART/ENSDARG IDs.")
-EOF
+echo "Summary saved to: $summary_file"
