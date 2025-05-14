@@ -837,7 +837,7 @@
 #EOF
 
 ## make a summary table
-module load Python/3.10.4
+module load SciPy-bundle/2022.05-foss-2022a
 
 python3 <<EOF
 import os
@@ -854,10 +854,10 @@ for root, _, files in os.walk(base_dir):
         if file.endswith("_genes_symbols.txt"):
             path = os.path.join(root, file)
 
-            # Expected directory structure: /<timepoint>_K9_<category>/<category>_bin_<bin>_genes_symbols.txt
             parts = path.split("/")
-            if len(parts) < 2:
+            if len(parts) < 2 or "_K9_" not in parts[-2]:
                 continue
+
             timepoint_dir = parts[-2]
             timepoint = timepoint_dir.split("_K9_")[0]
             category = timepoint_dir.split("_K9_")[-1]
@@ -871,7 +871,9 @@ for root, _, files in os.walk(base_dir):
                 ens_ids = [line.strip() for line in f1 if line.strip()]
                 symbols = [line.strip() for line in f2 if line.strip()]
 
-            # Align ENSDART/ENSDARG to gene symbol
+            if len(ens_ids) != len(symbols):
+                continue
+
             for ens, sym in zip(ens_ids, symbols):
                 summary_data.append({
                     "Timepoint": timepoint,
@@ -881,11 +883,12 @@ for root, _, files in os.walk(base_dir):
                     "Gene_Symbol": sym
                 })
 
-df = pd.DataFrame(summary_data)
-df = df.sort_values(by=["Timepoint", "Category", "TE_Overlap_Bin", "Gene_Symbol"])
-
-summary_path = os.path.join(output_dir, "H3K9me3_TE_ENSID_Symbol_Summary.tsv")
-df.to_csv(summary_path, sep="\t", index=False)
-
-print(f"Summary table saved to: {summary_path}")
+if summary_data:
+    df = pd.DataFrame(summary_data)
+    df = df.sort_values(by=["Timepoint", "Category", "TE_Overlap_Bin", "Gene_Symbol"])
+    summary_path = os.path.join(output_dir, "H3K9me3_TE_ENSID_Symbol_Summary.tsv")
+    df.to_csv(summary_path, sep="\t", index=False)
+    print("Summary table saved to:", summary_path)
+else:
+    print("No data collected. Check input files and paths.")
 EOF
