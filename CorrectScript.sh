@@ -837,58 +837,69 @@
 #EOF
 
 ## make a summary table
-module load SciPy-bundle/2022.05-foss-2022a
+module load Python
 
 python3 <<EOF
 import os
 import pandas as pd
 
-base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
-output_dir = os.path.join(base_dir, "summary_output")
+# Input directory with categorized gene IDs
+gene_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+output_dir = os.path.join(gene_dir, "summary_symbol_TE_output")
 os.makedirs(output_dir, exist_ok=True)
+
+# Gene symbol conversion map (pre-generated or mocked-up fallback)
+from mygene import MyGeneInfo
+mg = MyGeneInfo()
+
+def convert_ids(ens_ids):
+    response = mg.querymany(ens_ids, scopes='ensembl.gene', fields='symbol', species='zebrafish')
+    id_to_symbol = {}
+    for entry in response:
+        if 'query' in entry:
+            symbol = entry.get('symbol', '')
+            id_to_symbol[entry['query']] = symbol
+    return id_to_symbol
 
 summary_data = []
 
-for root, _, files in os.walk(base_dir):
+for root, _, files in os.walk(gene_dir):
     for file in files:
-        if file.endswith("_genes_symbols.txt"):
-            path = os.path.join(root, file)
+        if file.endswith("_genes.txt"):
+            file_path = os.path.join(root, file)
 
-            parts = path.split("/")
-            if len(parts) < 2 or "_K9_" not in parts[-2]:
+            try:
+                timepoint_dir = os.path.basename(os.path.dirname(file_path))
+                timepoint = timepoint_dir.split("_K9_")[0]
+                category = timepoint_dir.split("_K9_")[-1]
+                bin_level = file.split("_bin_")[-1].split("_")[0]
+            except:
                 continue
 
-            timepoint_dir = parts[-2]
-            timepoint = timepoint_dir.split("_K9_")[0]
-            category = timepoint_dir.split("_K9_")[-1]
-            bin_level = file.split("_bin_")[-1].split("_")[0]
+            with open(file_path) as f:
+                ids = [line.strip() for line in f if line.strip().startswith("ENS")]
 
-            ens_file = path.replace("_genes_symbols.txt", "_genes.txt")
-            if not os.path.exists(ens_file):
+            if not ids:
                 continue
 
-            with open(ens_file) as f1, open(path) as f2:
-                ens_ids = [line.strip() for line in f1 if line.strip()]
-                symbols = [line.strip() for line in f2 if line.strip()]
+            # Convert ENS IDs to gene symbols
+            id_to_symbol = convert_ids(ids)
 
-            if len(ens_ids) != len(symbols):
-                continue
-
-            for ens, sym in zip(ens_ids, symbols):
+            for ens_id in ids:
                 summary_data.append({
                     "Timepoint": timepoint,
                     "Category": category,
                     "TE_Overlap_Bin": bin_level,
-                    "ENSDAR_ID": ens,
-                    "Gene_Symbol": sym
+                    "ENSDAR_ID": ens_id,
+                    "Gene_Symbol": id_to_symbol.get(ens_id, "")
                 })
 
+# Create and save DataFrame
 if summary_data:
     df = pd.DataFrame(summary_data)
     df = df.sort_values(by=["Timepoint", "Category", "TE_Overlap_Bin", "Gene_Symbol"])
-    summary_path = os.path.join(output_dir, "H3K9me3_TE_ENSID_Symbol_Summary.tsv")
-    df.to_csv(summary_path, sep="\t", index=False)
-    print("Summary table saved to:", summary_path)
+    df.to_csv(os.path.join(output_dir, "H3K9me3_Genes_Symbols_TE_Summary.tsv"), sep="\t", index=False)
+    print("Summary saved.")
 else:
-    print("No data collected. Check input files and paths.")
+    print("No data found. Ensure input files exist and contain valid ENSDART/ENSDARG IDs.")
 EOF
