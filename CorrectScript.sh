@@ -789,59 +789,41 @@
 #done
 
 ##5.14.25 to make it extract gene names 
-module load mygene
+module load mygene/3.2.2-foss-2022a
 
+# Paths
 INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
 OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_symbol_outputs"
+
 mkdir -p "$OUTPUT_DIR"
 
-python <<EOF
-import os
-import re
+# Extract gene IDs from within5kb.txt files
+find "$INPUT_DIR" -name "*within5kb.txt" | while read annfile; do
+    label=$(basename "$annfile" .within5kb.txt)
+    out_txt="$OUTPUT_DIR/${label}_genes_mapped.txt"
+
+    echo "Processing $label"
+
+    awk -F'\t' 'NR > 1 && $15 ~ /^ENSDARG/ {print $15}' "$annfile" | sort | uniq > tmp_gene_ids.txt
+
+    python3 <<EOF
 import pandas as pd
 from mygene import MyGeneInfo
 
-input_dir = "${INPUT_DIR}"
-output_dir = "${OUTPUT_DIR}"
+with open("tmp_gene_ids.txt") as f:
+    gene_ids = [line.strip() for line in f if line.strip()]
 
-# Step 1: Collect all ENSDART or ENSDARG IDs from files
-gene_ids = set()
-file_map = {}
-
-for root, dirs, files in os.walk(input_dir):
-    for fname in files:
-        if fname.endswith(".txt") and "genes" in fname:
-            full_path = os.path.join(root, fname)
-            with open(full_path) as f:
-                lines = [line.strip() for line in f if line.strip()]
-                matches = [line for line in lines if line.startswith("ENSDART") or line.startswith("ENSDARG")]
-                gene_ids.update(matches)
-                file_map[full_path] = matches
-
-# Step 2: Query MyGene.info for gene symbols
-print(f"Querying {len(gene_ids)} gene IDs from MyGene.info...")
 mg = MyGeneInfo()
-results = mg.querymany(list(gene_ids), scopes="ensembl.gene", fields="symbol", species="zebrafish", as_dataframe=True)
+results = mg.querymany(gene_ids, scopes="ensembl.gene", fields="symbol", species="zebrafish", as_dataframe=True)
 
-# Clean and map
-results = results[~results.get("notfound", False)]
-symbol_map = results["symbol"].to_dict()
-
-# Step 3: Create mapping CSV
-mapping_df = pd.DataFrame(symbol_map.items(), columns=["Gene_ID", "Gene_Symbol"])
-mapping_df.to_csv(os.path.join(output_dir, "gene_id_to_symbol_mapping.csv"), index=False)
-
-# Step 4: Re-write each file with gene symbols added
-for path, ids in file_map.items():
-    out_lines = []
-    for gene_id in ids:
-        symbol = symbol_map.get(gene_id, "NA")
-        out_lines.append(f"{gene_id}\t{symbol}")
-    base_name = os.path.basename(path).replace(".txt", "_with_symbols.txt")
-    out_path = os.path.join(output_dir, base_name)
-    with open(out_path, "w") as out_f:
-        out_f.write("Gene_ID\tGene_Symbol\n")
-        out_f.write("\n".join(out_lines))
-print("Done.")
+# Drop entries without symbols or not found
+if "symbol" in results.columns:
+    mapped = results[~results.get("notfound", False) & results["symbol"].notnull()]
+    mapped["symbol"].drop_duplicates().sort_values().to_csv("$out_txt", index=False, header=False)
+else:
+    open("$out_txt", "w").close()  # Create empty file if nothing valid
 EOF
 
+    rm tmp_gene_ids.txt
+
+done
