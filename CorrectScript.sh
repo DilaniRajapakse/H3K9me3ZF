@@ -789,38 +789,49 @@
 #done
 
 ##5.14.25 to make it extract gene names 
-module load mygene/3.2.2-foss-2022a
+module load mygene
+module load SciPy-bundle
 
-INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
-OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_symbol_outputs"
-mkdir -p "$OUTPUT_DIR"
+IN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_symbol_lookup_output"
 
-# Get all .within5kb.txt files
-find "$INPUT_DIR" -name "*within5kb.txt" | while read file; do
-    base=$(basename "$file" .within5kb.txt)
-    echo "Processing $base"
+mkdir -p "$OUT_DIR"
 
-    # Extract ENSDARG IDs (column 15), skip header, ignore empty/bad lines
-    awk -F'\t' 'NR > 1 && $15 ~ /^ENSDARG/ { print $15 }' "$file" | sort -u > "$OUTPUT_DIR/${base}_ensids.txt"
-
-    python3 <<EOF
+python <<EOF
+import os
 import pandas as pd
 from mygene import MyGeneInfo
 
 mg = MyGeneInfo()
-infile = "$OUTPUT_DIR/${base}_ensids.txt"
-outfile = "$OUTPUT_DIR/${base}_symbol_map.txt"
+in_dir = "$IN_DIR"
+out_dir = "$OUT_DIR"
 
-with open(infile) as f:
-    ids = [line.strip() for line in f if line.strip()]
+for file in os.listdir(in_dir):
+    if file.endswith("_within5kb.txt"):
+        in_path = os.path.join(in_dir, file)
+        out_path = os.path.join(out_dir, file.replace(".txt", "_symbols.txt"))
+        print(f"Processing {file}")
 
-if ids:
-    res = mg.querymany(ids, scopes='ensembl.gene', species='zebrafish', fields='symbol', as_dataframe=True)
-    res = res[['symbol']]
-    res.to_csv(outfile, sep='\t')
-    print("Saved:", outfile)
-else:
-    print("No valid IDs in", infile)
+        # Extract ENSDART/ENSDARG IDs from columns 11 and 12
+        ens_ids = set()
+        with open(in_path) as f:
+            header = f.readline()
+            for line in f:
+                fields = line.strip().split("\t")
+                if len(fields) > 12:
+                    for i in [10, 11]:  # promoter and gene IDs
+                        if fields[i].startswith("ENSDAR"):
+                            ens_ids.add(fields[i])
+
+        if not ens_ids:
+            print(f"No valid Ensembl IDs in {file}")
+            continue
+
+        results = mg.querymany(list(ens_ids), scopes="ensembl.gene", fields="symbol", species="zebrafish", as_dataframe=True)
+
+        if not results.empty and "symbol" in results.columns:
+            df = results[["symbol"]].reset_index().rename(columns={"query": "Ensembl_ID", "symbol": "Gene_Symbol"})
+            df.to_csv(out_path, sep="\t", index=False)
+        else:
+            print(f"No mapping found for {file}")
 EOF
-
-done
