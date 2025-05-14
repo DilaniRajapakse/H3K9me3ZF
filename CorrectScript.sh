@@ -789,49 +789,100 @@
 #done
 
 ##5.14.25 to make it extract gene names 
-module load mygene
-module load SciPy-bundle
+#module load mygene
+#module load SciPy-bundle
 
-IN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_symbol_lookup_output"
+#IN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+#OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_symbol_lookup_output"
 
-mkdir -p "$OUT_DIR"
+#mkdir -p "$OUT_DIR"
 
-python <<EOF
-import os
-import pandas as pd
-from mygene import MyGeneInfo
+#python <<EOF
+#import os
+#import pandas as pd
+#from mygene import MyGeneInfo
 
-mg = MyGeneInfo()
-in_dir = "$IN_DIR"
-out_dir = "$OUT_DIR"
+#mg = MyGeneInfo()
+#in_dir = "$IN_DIR"
+#out_dir = "$OUT_DIR"
 
-for file in os.listdir(in_dir):
-    if file.endswith("_within5kb.txt"):
-        in_path = os.path.join(in_dir, file)
-        out_path = os.path.join(out_dir, file.replace(".txt", "_symbols.txt"))
-        print(f"Processing {file}")
+#for file in os.listdir(in_dir):
+#    if file.endswith("_within5kb.txt"):
+#        in_path = os.path.join(in_dir, file)
+#        out_path = os.path.join(out_dir, file.replace(".txt", "_symbols.txt"))
+#        print(f"Processing {file}")
 
         # Extract ENSDART/ENSDARG IDs from columns 11 and 12
-        ens_ids = set()
-        with open(in_path) as f:
-            header = f.readline()
-            for line in f:
-                fields = line.strip().split("\t")
-                if len(fields) > 12:
-                    for i in [10, 11]:  # promoter and gene IDs
-                        if fields[i].startswith("ENSDAR"):
-                            ens_ids.add(fields[i])
+#        ens_ids = set()
+#        with open(in_path) as f:
+#            header = f.readline()
+#            for line in f:
+#                fields = line.strip().split("\t")
+#                if len(fields) > 12:
+#                    for i in [10, 11]:  # promoter and gene IDs
+#                        if fields[i].startswith("ENSDAR"):
+#                            ens_ids.add(fields[i])
 
-        if not ens_ids:
-            print(f"No valid Ensembl IDs in {file}")
-            continue
+#        if not ens_ids:
+#            print(f"No valid Ensembl IDs in {file}")
+#            continue
 
-        results = mg.querymany(list(ens_ids), scopes="ensembl.gene", fields="symbol", species="zebrafish", as_dataframe=True)
+#        results = mg.querymany(list(ens_ids), scopes="ensembl.gene", fields="symbol", species="zebrafish", as_dataframe=True)
 
-        if not results.empty and "symbol" in results.columns:
-            df = results[["symbol"]].reset_index().rename(columns={"query": "Ensembl_ID", "symbol": "Gene_Symbol"})
-            df.to_csv(out_path, sep="\t", index=False)
-        else:
-            print(f"No mapping found for {file}")
+#        if not results.empty and "symbol" in results.columns:
+#            df = results[["symbol"]].reset_index().rename(columns={"query": "Ensembl_ID", "symbol": "Gene_Symbol"})
+#            df.to_csv(out_path, sep="\t", index=False)
+#        else:
+#            print(f"No mapping found for {file}")
+#EOF
+
+## make a summary table
+module load Python
+
+echo "Starting summary table generation..."
+
+python3 << 'EOF'
+import os
+import pandas as pd
+
+base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_symbols"
+output_file = os.path.join(base_dir, "H3K9me3_TE_Gene_Summary.csv")
+
+region_categories = ["exon_only", "intron_only", "both"]
+te_bins = ["000", "010", "025", "050", "075", "100"]
+
+summary = []
+
+for dirname in os.listdir(base_dir):
+    dirpath = os.path.join(base_dir, dirname)
+    if not os.path.isdir(dirpath):
+        continue
+
+    try:
+        timepoint, region_category = dirname.split("_K9_")
+    except ValueError:
+        continue
+
+    if region_category not in region_categories:
+        continue
+
+    for bin_code in te_bins:
+        filename = f"{region_category}_bin_{bin_code}_symbols.txt"
+        filepath = os.path.join(dirpath, filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'r') as f:
+                gene_symbols = [line.strip() for line in f if line.strip()]
+                summary.append({
+                    "Timepoint": timepoint,
+                    "Region_Category": region_category,
+                    "TE_Bin": bin_code,
+                    "Gene_Count": len(set(gene_symbols))
+                })
+
+df = pd.DataFrame(summary)
+df = df.sort_values(by=["Timepoint", "Region_Category", "TE_Bin"])
+df.to_csv(output_file, index=False)
+print(f"Summary written to {output_file}")
 EOF
+
+echo "Summary complete."
