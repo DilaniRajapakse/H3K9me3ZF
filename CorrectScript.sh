@@ -737,53 +737,72 @@ OUT_BASE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_ca
 
 mkdir -p "$OUT_BASE"
 
-for peakfile in "$PEAKS_DIR"/*final.bed; do
-    base=$(basename "$peakfile" _final.bed)
-    echo "Processing $base"
+#for peakfile in "$PEAKS_DIR"/*final.bed; do
+#    base=$(basename "$peakfile" _final.bed)
+#    echo "Processing $base"
 
     # Annotate and filter to within ±5kb of TSS
-    annotatePeaks.pl "$peakfile" danRer11 -gtf "$REF_GTF" > "$OUT_BASE/${base}.ann.txt"
-    awk -F'\t' 'NR==1 || ($8 ~ /exon|intron/ && sqrt($10*$10) <= 5000)' "$OUT_BASE/${base}.ann.txt" > "$OUT_BASE/${base}_within5kb.txt"
+#    annotatePeaks.pl "$peakfile" danRer11 -gtf "$REF_GTF" > "$OUT_BASE/${base}.ann.txt"
+#    awk -F'\t' 'NR==1 || ($8 ~ /exon|intron/ && sqrt($10*$10) <= 5000)' "$OUT_BASE/${base}.ann.txt" > "$OUT_BASE/${base}_within5kb.txt"
 
     # Split into categories
-    awk -F'\t' '
-        NR==1 {next}
-        $8 ~ /exon/ && $8 !~ /intron/ {print $2 "\t" $3 "\t" $4 > "'"$OUT_BASE/${base}_exon_only.bed"'";}
-        $8 ~ /intron/ && $8 !~ /exon/ {print $2 "\t" $3 "\t" $4 > "'"$OUT_BASE/${base}_intron_only.bed"'";}
-        $8 ~ /intron/ && $8 ~ /exon/  {print $2 "\t" $3 "\t" $4 > "'"$OUT_BASE/${base}_both.bed"'";}
-    ' "$OUT_BASE/${base}_within5kb.txt"
+#    awk -F'\t' '
+#        NR==1 {next}
+#        $8 ~ /exon/ && $8 !~ /intron/ {print $2 "\t" $3 "\t" $4 > "'"$OUT_BASE/${base}_exon_only.bed"'";}
+#        $8 ~ /intron/ && $8 !~ /exon/ {print $2 "\t" $3 "\t" $4 > "'"$OUT_BASE/${base}_intron_only.bed"'";}
+#        $8 ~ /intron/ && $8 ~ /exon/  {print $2 "\t" $3 "\t" $4 > "'"$OUT_BASE/${base}_both.bed"'";}
+#    ' "$OUT_BASE/${base}_within5kb.txt"
 
     # Process each category
-    for cat in exon_only intron_only both; do
-        mkdir -p "$OUT_BASE/${base}_${cat}"
+#    for cat in exon_only intron_only both; do
+#        mkdir -p "$OUT_BASE/${base}_${cat}"
 
-        sort -k1,1 -k2,2n "$OUT_BASE/${base}_${cat}.bed" > "$OUT_BASE/${base}_${cat}/input.bed"
+#        sort -k1,1 -k2,2n "$OUT_BASE/${base}_${cat}.bed" > "$OUT_BASE/${base}_${cat}/input.bed"
 
         # Bin 000 (0% TE overlap)
-        bedtools intersect -a "$OUT_BASE/${base}_${cat}/input.bed" -b "$TE_ANNOT" -v \
-          > "$OUT_BASE/${base}_${cat}/${cat}_bin_000.bed"
+#        bedtools intersect -a "$OUT_BASE/${base}_${cat}/input.bed" -b "$TE_ANNOT" -v \
+#          > "$OUT_BASE/${base}_${cat}/${cat}_bin_000.bed"
 
         # Bins: ≤10, ≤25, ≤50, ≤75
-        for threshold in 0.10 0.25 0.50 0.75; do
-            perc=$(echo "$threshold" | awk '{printf "%03d", $1*100}')
-            binname="${cat}_bin_${perc}"
-            bedtools intersect -a "$OUT_BASE/${base}_${cat}/input.bed" -b "$TE_ANNOT" -f "$threshold" -u \
-              > "$OUT_BASE/${base}_${cat}/${binname}.bed"
-        done
+#        for threshold in 0.10 0.25 0.50 0.75; do
+#            perc=$(echo "$threshold" | awk '{printf "%03d", $1*100}')
+#            binname="${cat}_bin_${perc}"
+#            bedtools intersect -a "$OUT_BASE/${base}_${cat}/input.bed" -b "$TE_ANNOT" -f "$threshold" -u \
+#              > "$OUT_BASE/${base}_${cat}/${binname}.bed"
+#        done
 
         # Bin 100 = everything else not in previous bins
-        cat "$OUT_BASE/${base}_${cat}/${cat}_bin_"*.bed 2>/dev/null | sort -k1,1 -k2,2n | uniq \
-          > "$OUT_BASE/${base}_${cat}/tmp_all_bins_covered.bed"
-        bedtools subtract -a "$OUT_BASE/${base}_${cat}/input.bed" -b "$OUT_BASE/${base}_${cat}/tmp_all_bins_covered.bed" \
-          > "$OUT_BASE/${base}_${cat}/${cat}_bin_100.bed"
-        rm "$OUT_BASE/${base}_${cat}/tmp_all_bins_covered.bed"
+#        cat "$OUT_BASE/${base}_${cat}/${cat}_bin_"*.bed 2>/dev/null | sort -k1,1 -k2,2n | uniq \
+#          > "$OUT_BASE/${base}_${cat}/tmp_all_bins_covered.bed"
+#        bedtools subtract -a "$OUT_BASE/${base}_${cat}/input.bed" -b "$OUT_BASE/${base}_${cat}/tmp_all_bins_covered.bed" \
+#          > "$OUT_BASE/${base}_${cat}/${cat}_bin_100.bed"
+#        rm "$OUT_BASE/${base}_${cat}/tmp_all_bins_covered.bed"
 
         # Annotate each bin and extract gene symbols
-        for binfile in "$OUT_BASE/${base}_${cat}/${cat}_bin_"*.bed; do
-            binbase=$(basename "$binfile" .bed)
-            annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$OUT_BASE/${base}_${cat}/${binbase}.ann.txt"
-            awk -F'\t' 'NR > 1 && $2 != "NA" {print $2}' "$OUT_BASE/${base}_${cat}/${binbase}.ann.txt" | sort | uniq \
-              > "$OUT_BASE/${base}_${cat}/${binbase}_genes.txt"
-        done
-    done
+#        for binfile in "$OUT_BASE/${base}_${cat}/${cat}_bin_"*.bed; do
+#            binbase=$(basename "$binfile" .bed)
+#            annotatePeaks.pl "$binfile" danRer11 -gtf "$REF_GTF" > "$OUT_BASE/${base}_${cat}/${binbase}.ann.txt"
+#            awk -F'\t' 'NR > 1 && $2 != "NA" {print $2}' "$OUT_BASE/${base}_${cat}/${binbase}.ann.txt" | sort | uniq \
+#              > "$OUT_BASE/${base}_${cat}/${binbase}_genes.txt"
+#        done
+#    done
+#done
+
+##5.14.25 to make it extract gene names and not chromosome numbers
+
+echo "Regenerating *_genes.txt files using 'Gene Name' field..."
+
+# Create logs directory if it doesn't exist
+mkdir -p /scratch/dr27977/logs
+
+# Loop through all within5kb annotation files
+find "$OUT_BASE" -name "*.within5kb.txt" | while read infile; do
+    outname="${infile%.within5kb.txt}_genes.txt"
+
+    # Extract gene names from column 14 (Gene Name), skip header, remove NA and blanks
+    awk -F'\t' 'NR > 1 && $14 != "NA" && $14 != "" && $14 != "." { print $14 }' "$infile" | sort | uniq > "$outname"
+
+    echo "Written gene list to $outname"
 done
+
+echo "All gene symbol lists regenerated."
