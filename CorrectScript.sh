@@ -837,43 +837,34 @@
 #EOF
 
 ## make a summary table
-base_dir="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
-output_dir="${base_dir}/summary_output"
-mkdir -p "$output_dir"
+module load Python
 
-summary_file="${output_dir}/H3K9me3_TE_Gene_Symbol_Summary.tsv"
-echo -e "Timepoint\tCategory\tTE_Overlap_Bin\tTE_Overlap_Percent\tENSDAR_ID\tGene_Symbol" > "$summary_file"
+python3 <<EOF
+import os
+from glob import glob
 
-# Map TE overlap bin to descriptive percentage
-percent_label() {
-  case "$1" in
-    000) echo "0%";;
-    010) echo "<=10%";;
-    025) echo "<=25%";;
-    050) echo "<=50%";;
-    075) echo "<=75%";;
-    100) echo "<=100%";;
-    *) echo "Unknown";;
-  esac
-}
+base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+output_dir = os.path.join(base_dir, "summary_output")
+os.makedirs(output_dir, exist_ok=True)
 
-# Process all *_genes.txt and matching *_genes_symbols.txt
-while IFS= read -r genes_file; do
-    symbols_file="${genes_file/_genes.txt/_genes_symbols.txt}"
-    [[ -f "$symbols_file" ]] || continue
+output_file = os.path.join(output_dir, "H3K9me3_TE_Summary.tsv")
+with open(output_file, "w") as out:
+    out.write("Timepoint\tCategory\tTE_Overlap_Bin\tENSDAR_ID\n")
 
-    dir_path=$(dirname "$genes_file")
-    dir_name=$(basename "$dir_path")
-    timepoint="${dir_name%%_K9_*}"
-    category="${dir_name#${timepoint}_K9_}"
-    bin_level=$(basename "$genes_file" | grep -oP '(?<=_bin_)[0-9]+')
+    for path in glob(base_dir + "/**/*_genes.txt", recursive=True):
+        filename = os.path.basename(path)
+        parent_dir = os.path.basename(os.path.dirname(path))
 
-    percent=$(percent_label "$bin_level")
+        try:
+            timepoint = parent_dir.split("_K9_")[0]
+            category = parent_dir.split("_K9_")[1]
+            te_bin = filename.split("_bin_")[1].split("_")[0]
+        except IndexError:
+            continue  # skip malformed files
 
-    # Combine and write to summary
-    paste "$genes_file" "$symbols_file" | while IFS=$'\t' read -r ensid symbol; do
-        echo -e "${timepoint}\t${category}\t${bin_level}\t${percent}\t${ensid}\t${symbol}" >> "$summary_file"
-    done
-done < <(find "$base_dir" -name "*_genes.txt" | sort)
-
-echo "Summary saved to: $summary_file"
+        with open(path) as f:
+            for line in f:
+                gene = line.strip()
+                if gene and (gene.startswith("ENSDART") or gene.startswith("ENSDARG")):
+                    out.write(f"{timepoint}\t{category}\t{te_bin}\t{gene}\n")
+EOF
