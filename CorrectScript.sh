@@ -9,21 +9,21 @@
 #SBATCH --mail-user=dr27977@uga.edu                    # Where to send mail (replace cbergman with your myid)
 #SBATCH --mail-type=ALL                            # Mail events (BEGIN, END, FAIL, ALL)
 
-OUTDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published" 
+#OUTDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published" 
 #if output directory doesn't exist, create it
-if [ ! -d $OUTDIR ]
-then
-    mkdir -p $OUTDIR
-fi
-cd $OUTDIR
+#if [ ! -d $OUTDIR ]
+#then
+#    mkdir -p $OUTDIR
+#fi
+#cd $OUTDIR
 
-HOMEDIR="/home/dr27977/H3K9me3ZF"
-if [ ! -d $HOMEDIR ]
-then
-    mkdir -p $HOMEDIR
-fi
+#HOMEDIR="/home/dr27977/H3K9me3ZF"
+#if [ ! -d $HOMEDIR ]
+#then
+#    mkdir -p $HOMEDIR
+#fi
 
-BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+#BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #ml STAR (SAMtools/1.18-GCC-12.3.0 )
 #for file in $OUTDIR/*_R*.fastq.gz;
@@ -727,15 +727,15 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #echo "Binning complete. Results saved to $GENIC_TE_BIN_DIR"
 
-module load BEDTools
-module load Homer
+#module load BEDTools
+#module load Homer
 
-PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
-TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-OUT_BASE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+#PEAKS_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
+#TE_ANNOT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+#REF_GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+#OUT_BASE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
 
-mkdir -p "$OUT_BASE"
+#mkdir -p "$OUT_BASE"
 
 #for peakfile in "$PEAKS_DIR"/*final.bed; do
 #    base=$(basename "$peakfile" _final.bed)
@@ -788,21 +788,60 @@ mkdir -p "$OUT_BASE"
 #    done
 #done
 
-##5.14.25 to make it extract gene names and not chromosome numbers
+##5.14.25 to make it extract gene names 
+module load mygene
 
-echo "Regenerating *_genes.txt files using 'Gene Name' field..."
+INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
+OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_symbol_outputs"
+mkdir -p "$OUTPUT_DIR"
 
-# Create logs directory if it doesn't exist
-mkdir -p /scratch/dr27977/logs
+python <<EOF
+import os
+import re
+import pandas as pd
+from mygene import MyGeneInfo
 
-# Loop through all within5kb annotation files
-find "$OUT_BASE" -name "*.within5kb.txt" | while read infile; do
-    outname="${infile%.within5kb.txt}_genes.txt"
+input_dir = "${INPUT_DIR}"
+output_dir = "${OUTPUT_DIR}"
 
-    # Extract gene names from column 14 (Gene Name), skip header, remove NA and blanks
-    awk -F'\t' 'NR > 1 && $14 != "NA" && $14 != "" && $14 != "." { print $14 }' "$infile" | sort | uniq > "$outname"
+# Step 1: Collect all ENSDART or ENSDARG IDs from files
+gene_ids = set()
+file_map = {}
 
-    echo "Written gene list to $outname"
-done
+for root, dirs, files in os.walk(input_dir):
+    for fname in files:
+        if fname.endswith(".txt") and "genes" in fname:
+            full_path = os.path.join(root, fname)
+            with open(full_path) as f:
+                lines = [line.strip() for line in f if line.strip()]
+                matches = [line for line in lines if line.startswith("ENSDART") or line.startswith("ENSDARG")]
+                gene_ids.update(matches)
+                file_map[full_path] = matches
 
-echo "All gene symbol lists regenerated."
+# Step 2: Query MyGene.info for gene symbols
+print(f"Querying {len(gene_ids)} gene IDs from MyGene.info...")
+mg = MyGeneInfo()
+results = mg.querymany(list(gene_ids), scopes="ensembl.gene", fields="symbol", species="zebrafish", as_dataframe=True)
+
+# Clean and map
+results = results[~results.get("notfound", False)]
+symbol_map = results["symbol"].to_dict()
+
+# Step 3: Create mapping CSV
+mapping_df = pd.DataFrame(symbol_map.items(), columns=["Gene_ID", "Gene_Symbol"])
+mapping_df.to_csv(os.path.join(output_dir, "gene_id_to_symbol_mapping.csv"), index=False)
+
+# Step 4: Re-write each file with gene symbols added
+for path, ids in file_map.items():
+    out_lines = []
+    for gene_id in ids:
+        symbol = symbol_map.get(gene_id, "NA")
+        out_lines.append(f"{gene_id}\t{symbol}")
+    base_name = os.path.basename(path).replace(".txt", "_with_symbols.txt")
+    out_path = os.path.join(output_dir, base_name)
+    with open(out_path, "w") as out_f:
+        out_f.write("Gene_ID\tGene_Symbol\n")
+        out_f.write("\n".join(out_lines))
+print("Done.")
+EOF
+
