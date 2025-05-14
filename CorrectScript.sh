@@ -837,7 +837,8 @@
 #EOF
 
 ## make a summary table
-module load Python
+module load SciPy-bundle
+module load mygene
 
 python3 <<EOF
 import os
