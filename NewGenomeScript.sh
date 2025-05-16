@@ -25,7 +25,7 @@ fi
 
 BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 
-ml STAR (SAMtools/1.18-GCC-12.3.0 )
+module load STAR
 for file in $OUTDIR/*_R*.fastq.gz;
 do
  if [[ $prefix ]]; then
