@@ -104,136 +104,182 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 # done
 
 # ###Remove PCR duplicates
-module load picard 
-module load SAMtools 
+#module load picard 
+#module load SAMtools 
 
-for infile in $OUTDIR/bams/*_q1.bam
-do
-  base=$(basename ${infile} _q1.bam)
+#for infile in $OUTDIR/bams/*_q1.bam
+#do
+#  base=$(basename ${infile} _q1.bam)
 
   #Add read groups
-  java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
-    I=$OUTDIR/bams/${base}_q1.bam \
-    O=$OUTDIR/bams/${base}_q1_rg.bam \
-    RGID=1 \
-    RGLB=lib1 \
-    RGPL=ILLUMINA \
-    RGPU=unit1 \
-    RGSM=${base}
+#  java -jar $EBROOTPICARD/picard.jar AddOrReplaceReadGroups \
+#    I=$OUTDIR/bams/${base}_q1.bam \
+#    O=$OUTDIR/bams/${base}_q1_rg.bam \
+#    RGID=1 \
+#    RGLB=lib1 \
+#    RGPL=ILLUMINA \
+#    RGPU=unit1 \
+#    RGSM=${base}
 
   # Run MarkDuplicates on the BAM with read groups
-  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
-    I=$OUTDIR/bams/${base}_q1_rg.bam \
-    O=$OUTDIR/bams/${base}_nodups.bam \
-    M=$OUTDIR/bams/${base}_dupmetrics.txt \
-    REMOVE_DUPLICATES=true
-done
+#  java -jar $EBROOTPICARD/picard.jar MarkDuplicates \
+#    I=$OUTDIR/bams/${base}_q1_rg.bam \
+#    O=$OUTDIR/bams/${base}_nodups.bam \
+#    M=$OUTDIR/bams/${base}_dupmetrics.txt \
+#    REMOVE_DUPLICATES=true
+#done
 
 # #merging IgG samples from all time points to create uniformity in peak calling later
 ##see if the other replicates exist
-module load SAMtools 
-samtools merge -f $BASEDIR/bams/IgG_nodups.bam \
-  $BASEDIR/bams/IgG_2.5hpf_nodups.bam \
-  $BASEDIR/bams/IgG_24hpf_nodups.bam \
-  $BASEDIR/bams/IgG_4.5hpf_nodups.bam \
-  $BASEDIR/bams/4hpf_IgG_1_nodups.bam \
-  $BASEDIR/bams/4hpf_IgG_2_nodups.bam \
-  $BASEDIR/bams/3hpf_IgG_1_nodups.bam \
-  $BASEDIR/bams/3hpf_IgG_2_nodups.bam \
-  $BASEDIR/bams/3.5hpf_IgG_1_nodups.bam \
-  $BASEDIR/bams/2hpf_IgG_1_nodups.bam \
+#module load SAMtools 
+#samtools merge -f $BASEDIR/bams/IgG_nodups.bam \
+#  $BASEDIR/bams/IgG_2.5hpf_nodups.bam \
+#  $BASEDIR/bams/IgG_24hpf_nodups.bam \
+#  $BASEDIR/bams/IgG_4.5hpf_nodups.bam \
+#  $BASEDIR/bams/4hpf_IgG_1_nodups.bam \
+#  $BASEDIR/bams/4hpf_IgG_2_nodups.bam \
+#  $BASEDIR/bams/3hpf_IgG_1_nodups.bam \
+#  $BASEDIR/bams/3hpf_IgG_2_nodups.bam \
+#  $BASEDIR/bams/3.5hpf_IgG_1_nodups.bam \
+#  $BASEDIR/bams/2hpf_IgG_1_nodups.bam \
 
-samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
- $BASEDIR/bams/IgG_2.5hpf__ecoli*nodups.bam \
- $BASEDIR/bams/IgG_24hpf__ecoli*nodups.bam \
- $BASEDIR/bams/IgG_4.5hpf__ecoli*nodups.bam \
- $BASEDIR/bams/4hpf_IgG_1__ecoli*nodups.bam \
- $BASEDIR/bams/4hpf_IgG_2__ecoli*nodups.bam \
- $BASEDIR/bams/3hpf_IgG_1__ecoli*nodups.bam \
- $BASEDIR/bams/3hpf_IgG_2__ecoli*nodups.bam \
- $BASEDIR/bams/3.5hpf_IgG_1__ecoli*nodups.bam \
- $BASEDIR/bams/2hpf_IgG_1__ecoli*nodups.bam \
+#samtools merge -f $BASEDIR/bams/IgG_ecoli_nodups.bam \
+# $BASEDIR/bams/IgG_2.5hpf__ecoli*nodups.bam \
+# $BASEDIR/bams/IgG_24hpf__ecoli*nodups.bam \
+# $BASEDIR/bams/IgG_4.5hpf__ecoli*nodups.bam \
+# $BASEDIR/bams/4hpf_IgG_1__ecoli*nodups.bam \
+# $BASEDIR/bams/4hpf_IgG_2__ecoli*nodups.bam \
+# $BASEDIR/bams/3hpf_IgG_1__ecoli*nodups.bam \
+# $BASEDIR/bams/3hpf_IgG_2__ecoli*nodups.bam \
+# $BASEDIR/bams/3.5hpf_IgG_1__ecoli*nodups.bam \
+# $BASEDIR/bams/2hpf_IgG_1__ecoli*nodups.bam \
 
 ##Now we need to extract all the aligned reads in preperation for spike in normalization
-module load BEDTools 
+#module load BEDTools 
 
-for infile in $BASEDIR/bams/*nodups.bam
-do
-  base=$(basename ${infile} .bam)
-  bedtools bamtobed -i $infile | awk -v OFS='\t' '{len = $3 - $2; print $0, len }' > $BASEDIR/bams/$base.btb.bed
-done
+#for infile in $BASEDIR/bams/*nodups.bam
+#do
+#  base=$(basename ${infile} .bam)
+#  bedtools bamtobed -i $infile | awk -v OFS='\t' '{len = $3 - $2; print $0, len }' > $BASEDIR/bams/$base.btb.bed
+#done
 
 ##spike in normalization
-mkdir $BASEDIR/bdgrphs
+#mkdir $BASEDIR/bdgrphs
 
-for file in $BASEDIR/bams/*.btb.bed;
-do
-  if [[ $prefix ]]; then
-        base=$(basename ${file} _nodups.btb.bed)
-        sh /home/dr27977/H3K9me3ZF/DNA_spike.kd.sh $file $first \
-        100000 bga $BASEDIR/genome/chrNameLength.txt 1 1000 $BASEDIR/bdgrphs/"$base".norm.bga
-        prefix=
-    else
-        first=$file
-        prefix=${file%%_*}
-    fi
-done
+#for file in $BASEDIR/bams/*.btb.bed;
+#do
+#  if [[ $prefix ]]; then
+#        base=$(basename ${file} _nodups.btb.bed)
+#        sh /home/dr27977/H3K9me3ZF/DNA_spike.kd.sh $file $first \
+#        100000 bga $BASEDIR/genome/chrNameLength.txt 1 1000 $BASEDIR/bdgrphs/"$base".norm.bga
+#        prefix=
+#    else
+#        first=$file
+#        prefix=${file%%_*}
+#    fi
+#done
 
-module load Homer 
-mkdir $BASEDIR/peaks
+#module load Homer 
+#mkdir $BASEDIR/peaks
 
 #Convert normalized bga to BED format
-for infile in $BASEDIR/bdgrphs/*.norm.bga; do
-  base=$(basename "$infile" .norm.bga)
-  awk '{print $1 "\t" $2 "\t" $3 "\t" "+" "\t" "+" "\t" "+"}' "$infile" > $BASEDIR/peaks/$base.bgato.bed
-done
+#for infile in $BASEDIR/bdgrphs/*.norm.bga; do
+#  base=$(basename "$infile" .norm.bga)
+#  awk '{print $1 "\t" $2 "\t" $3 "\t" "+" "\t" "+" "\t" "+"}' "$infile" > $BASEDIR/peaks/$base.bgato.bed
+#done
 
 #Make tag directories for each BED
-for infile in $BASEDIR/peaks/*.bgato.bed; do
-  base=$(basename "$infile" .bgato.bed)
-  makeTagDirectory $BASEDIR/peaks/$base.BtB.tagdir "$infile" -format bed
-done
+#for infile in $BASEDIR/peaks/*.bgato.bed; do
+#  base=$(basename "$infile" .bgato.bed)
+#  makeTagDirectory $BASEDIR/peaks/$base.BtB.tagdir "$infile" -format bed
+#done
 
 #Call peaks using merged IgG control
-for infile in $BASEDIR/peaks/*K9*.BtB.tagdir; do
-  base=$(basename "$infile" .BtB.tagdir)
-  findPeaks "$infile" -style histone -minDist 1000 -gsize 1.5e9 -F 4 \
-    -i $BASEDIR/peaks/IgG.BtB.tagdir \
-    -o $BASEDIR/peaks/$base.txt
-done
+#for infile in $BASEDIR/peaks/*K9*.BtB.tagdir; do
+#  base=$(basename "$infile" .BtB.tagdir)
+#  findPeaks "$infile" -style histone -minDist 1000 -gsize 1.5e9 -F 4 \
+#    -i $BASEDIR/peaks/IgG.BtB.tagdir \
+#    -o $BASEDIR/peaks/$base.txt
+#done
 
 #Convert HOMER output to BED
-for infile in $BASEDIR/peaks/*.txt; do
-  base=$(basename "$infile" .txt)
-  sed '/^#/d' "$infile" | \
-    awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" $8 "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' | \
-    sed 's/\.000000//g' > $BASEDIR/peaks/$base.peaks.bed
-done
+#for infile in $BASEDIR/peaks/*.txt; do
+#  base=$(basename "$infile" .txt)
+#  sed '/^#/d' "$infile" | \
+#    awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" $8 "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' | \
+#    sed 's/\.000000//g' > $BASEDIR/peaks/$base.peaks.bed
+#done
 
-module load ChIP-R 
-chipr -i $BASEDIR/peaks/2hpf_K9_1.peaks.bed $BASEDIR/peaks/2hpf_K9_2.peaks.bed -m 2 -o $BASEDIR/peaks/2hpf_K9_repPeaks
-chipr -i $BASEDIR/peaks/K9abcam_2.5hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_2.5hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_2.5hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/2.5hpf_K9_repPeaks
-chipr -i $BASEDIR/peaks/3hpf_K9_1.peaks.bed $BASEDIR/peaks/3hpf_K9_2.peaks.bed $BASEDIR/peaks/3hpf_K9_3.peaks.bed -m 2 -o $BASEDIR/peaks/3hpf_K9_repPeaks
-chipr -i $BASEDIR/peaks/3.5hpf_K9_1.peaks.bed $BASEDIR/peaks/3.5hpf_K9_2.peaks.bed $BASEDIR/peaks/3.5hpf_K9_3.peaks.bed -m 2 -o $BASEDIR/peaks/3.5hpf_K9_repPeaks
-chipr -i $BASEDIR/peaks/4hpf_K9_1.peaks.bed $BASEDIR/peaks/4hpf_K9_2.peaks.bed $BASEDIR/peaks/4hpf_K9_3.peaks.bed -m 2 -o $BASEDIR/peaks/4hpf_K9_repPeaks
-chipr -i $BASEDIR/peaks/K9abcam_4.5hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_4.5hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_4.5hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/4.5hpf_K9_repPeaks
-chipr -i $BASEDIR/peaks/K9abcam_24hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/24hpf_K9_repPeaks
+#module load ChIP-R 
+#chipr -i $BASEDIR/peaks/2hpf_K9_1.peaks.bed $BASEDIR/peaks/2hpf_K9_2.peaks.bed -m 2 -o $BASEDIR/peaks/2hpf_K9_repPeaks
+#chipr -i $BASEDIR/peaks/K9abcam_2.5hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_2.5hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_2.5hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/2.5hpf_K9_repPeaks
+#chipr -i $BASEDIR/peaks/3hpf_K9_1.peaks.bed $BASEDIR/peaks/3hpf_K9_2.peaks.bed $BASEDIR/peaks/3hpf_K9_3.peaks.bed -m 2 -o $BASEDIR/peaks/3hpf_K9_repPeaks
+#chipr -i $BASEDIR/peaks/3.5hpf_K9_1.peaks.bed $BASEDIR/peaks/3.5hpf_K9_2.peaks.bed $BASEDIR/peaks/3.5hpf_K9_3.peaks.bed -m 2 -o $BASEDIR/peaks/3.5hpf_K9_repPeaks
+#chipr -i $BASEDIR/peaks/4hpf_K9_1.peaks.bed $BASEDIR/peaks/4hpf_K9_2.peaks.bed $BASEDIR/peaks/4hpf_K9_3.peaks.bed -m 2 -o $BASEDIR/peaks/4hpf_K9_repPeaks
+#chipr -i $BASEDIR/peaks/K9abcam_4.5hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_4.5hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_4.5hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/4.5hpf_K9_repPeaks
+#chipr -i $BASEDIR/peaks/K9abcam_24hpf_1.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_2.peaks.bed $BASEDIR/peaks/K9abcam_24hpf_3.peaks.bed -m 2 -o $BASEDIR/peaks/24hpf_K9_repPeaks
 
 ###make a blacklist file
-module load Homer 
-makeTagDirectory $BASEDIR/peaks/IgG.BtB.tagdir $BASEDIR/peaks/IgG.bgato.bed -format bed
-findPeaks $BASEDIR/peaks/IgG.BtB.tagdir -style factor -o $BASEDIR/peaks/IgG.txt
-sed '/^#/d' $BASEDIR/peaks/IgG.txt | \
-  awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" "1" "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' > $BASEDIR/peaks/blacklist.bed
+#module load Homer 
+#makeTagDirectory $BASEDIR/peaks/IgG.BtB.tagdir $BASEDIR/peaks/IgG.bgato.bed -format bed
+#findPeaks $BASEDIR/peaks/IgG.BtB.tagdir -style factor -o $BASEDIR/peaks/IgG.txt
+#sed '/^#/d' $BASEDIR/peaks/IgG.txt | \
+#  awk '{print $2 "\t" $3 "\t" $4 "\t" $1 "\t" "1" "\t" $5 "\t" $6 "\t" $12 "\t" "-1"}' > $BASEDIR/peaks/blacklist.bed
 
-ml BEDTools 
+#ml BEDTools 
 
 ###intersect the peaks with the blacklist file to make sure we aren't looking at sticky regions before this step
-for infile in $BASEDIR/peaks/*_repPeaks_all.bed
+#for infile in $BASEDIR/peaks/*_repPeaks_all.bed
+#do
+#  base=$( basename ${infile} _repPeaks_all.bed )
+#  bedtools intersect -a $infile -b $BASEDIR/peaks/blacklist.bed -v > $BASEDIR/peaks/"$base"_final.bed
+#done
+
+## Get H3K9me3 peaks within 5Kb of a genic TSS and 1Kb of a genic tss
+module load Homer
+module load BEDtools
+curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
+mkdir $BASEDIR/peaks/ann
+
+for infile in $BASEDIR/peaks/*final.bed
 do
-  base=$( basename ${infile} _repPeaks_all.bed )
-  bedtools intersect -a $infile -b $BASEDIR/peaks/blacklist.bed -v > $BASEDIR/peaks/"$base"_final.bed
+  base=$( basename ${infile} final.bed)
+  annotatePeaks.pl $infile danRer12 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
 done
 
+for infile in $BASEDIR/peaks/ann/*maskann.txt
+do
+  base=$(basename ${infile} .maskann.txt)
+  awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $BASEDIR/peaks/ann/$base.5000bp_ann.txt
+done
 
+for infile in $OUTDIR/peaks/ann/*maskann.txt
+ do
+   base=$(basename ${infile} .maskann.txt)
+   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $BASEDIR/peaks/ann/${base}.MOREthan5000bp.bed
+ done
+
+# Create output directory
+mkdir -p $BASEDIR/peaks/ann_1kb
+
+# Annotate each peak file
+for infile in $BASEDIR/peaks/*final.bed
+do
+  base=$(basename ${infile} final.bed)
+  annotatePeaks.pl $infile danRer12 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann_1kb/$base.maskann.txt
+done
+
+# Filter peaks within ±1kb of TSS
+for infile in $BASEDIR/peaks/ann_1kb/*maskann.txt
+do
+  base=$(basename ${infile} .maskann.txt)
+  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann_1kb/$base.within1kb_TSS.txt
+done
+
+# Optional: Convert to BED format
+for infile in $BASEDIR/peaks/ann_1kb/*within1kb_TSS.txt
+do
+  base=$(basename ${infile} .within1kb_TSS.txt)
+  awk '{print $2 "\t" $3 "\t" $4}' $infile > $BASEDIR/peaks/ann_1kb/$base.within1kb_TSS.bed
+done
 
