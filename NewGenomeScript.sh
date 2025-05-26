@@ -235,15 +235,15 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 #  bedtools intersect -a $infile -b $BASEDIR/peaks/blacklist.bed -v > $BASEDIR/peaks/"$base"_final.bed
 #done
 
-#module load ucsc/443
-#mkdir $BASEDIR/bws
+module load ucsc/443
+mkdir $BASEDIR/bws
 
-#for infile in $BASEDIR/bdgrphs/*norm.bga
-#do
-#  base=$(basename ${infile} .norm.bga)
-#  bedSort $infile $infile
-#  bedGraphToBigWig $infile $BASEDIR/genome/chrNameLength.txt $BASEDIR/bws/$base.bw
-#done
+for infile in $BASEDIR/bdgrphs/*norm.bga
+do
+  base=$(basename ${infile} .norm.bga)
+  bedSort $infile $infile
+  bedGraphToBigWig $infile $BASEDIR/genome/chrNameLength.txt $BASEDIR/bws/$base.bw
+done
 
 ###lets do some broad comparisons to see what our data looks like before moving on
 module load deepTools 
