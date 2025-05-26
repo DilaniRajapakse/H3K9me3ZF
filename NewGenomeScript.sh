@@ -235,51 +235,151 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 #  bedtools intersect -a $infile -b $BASEDIR/peaks/blacklist.bed -v > $BASEDIR/peaks/"$base"_final.bed
 #done
 
-## Get H3K9me3 peaks within 5Kb of a genic TSS and 1Kb of a genic tss
-module load Homer
-module load BEDtools
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.gtf.gz | gunzip -c > $BASEDIR/refann.gtf
-mkdir $BASEDIR/peaks/ann
+#module load ucsc/443
+#mkdir $BASEDIR/bws
 
-for infile in $BASEDIR/peaks/*final.bed
-do
-  base=$( basename ${infile} final.bed)
-  annotatePeaks.pl $infile danRer12 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann/$base.maskann.txt
-done
+#for infile in $BASEDIR/bdgrphs/*norm.bga
+#do
+#  base=$(basename ${infile} .norm.bga)
+#  bedSort $infile $infile
+#  bedGraphToBigWig $infile $BASEDIR/genome/chrNameLength.txt $BASEDIR/bws/$base.bw
+#done
 
-for infile in $BASEDIR/peaks/ann/*maskann.txt
-do
-  base=$(basename ${infile} .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $BASEDIR/peaks/ann/$base.5000bp_ann.txt
-done
+###lets do some broad comparisons to see what our data looks like before moving on
+module load deepTools 
 
-for infile in $OUTDIR/peaks/ann/*maskann.txt
- do
-   base=$(basename ${infile} .maskann.txt)
-   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $BASEDIR/peaks/ann/${base}.MOREthan5000bp.bed
- done
+multiBigwigSummary bins -b $BASEDIR/bws/*[1-3].bw $BASEDIR/bws/*IgG*.bw -o $BASEDIR/bwreps_summ.npz -p 24
+plotCorrelation -in $BASEDIR/bwreps_summ.npz -c spearman -p heatmap -o $BASEDIR/timecourse_bwreps_summ_heatmap.pdf
+plotPCA -in $BASEDIR/bwreps_summ.npz -o $BASEDIR/timecourse_bwreps_summ_PCA.pdf
 
-# Create output directory
-mkdir -p $BASEDIR/peaks/ann_1kb
+## Making bws of the mean of the replicates for profile plots
+module load deepTools
+mkdir $OUTDIR/bws/bwscomp/
+bigwigCompare \
+  -b1 $OUTDIR/bws/2hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/2hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.5:0.5 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/2hpf_K9_AVG.bw
 
-# Annotate each peak file
-for infile in $BASEDIR/peaks/*final.bed
-do
-  base=$(basename ${infile} final.bed)
-  annotatePeaks.pl $infile danRer12 -gtf $BASEDIR/refann.gtf > $BASEDIR/peaks/ann_1kb/$base.maskann.txt
-done
+ ##Step 1: Combine replicate 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/K9abcam_2.5hpf_1.bw \
+  -b2 $OUTDIR/bws/K9abcam_2.5hpf_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw
 
-# Filter peaks within ±1kb of TSS
-for infile in $BASEDIR/peaks/ann_1kb/*maskann.txt
-do
-  base=$(basename ${infile} .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $BASEDIR/peaks/ann_1kb/$base.within1kb_TSS.txt
-done
+## Step 2: Add replicate 3 to the combined 1+2 (again scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_1plus2.bw \
+  -b2 $OUTDIR/bws/K9abcam_2.5hpf_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_2.5hpf_AVG.bw
 
-# Optional: Convert to BED format
-for infile in $BASEDIR/peaks/ann_1kb/*within1kb_TSS.txt
-do
-  base=$(basename ${infile} .within1kb_TSS.txt)
-  awk '{print $2 "\t" $3 "\t" $4}' $infile > $BASEDIR/peaks/ann_1kb/$base.within1kb_TSS.bed
-done
+## Step 1: Combine replicates 1 and 2, each scaled to 1/3
+bigwigCompare \
+  -b1 $OUTDIR/bws/3hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/3hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw
 
+## Step 2: Add replicate 3, also scaled to 1/3
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/3hpf_K9_1plus2.bw \
+  -b2 $OUTDIR/bws/3hpf_K9_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3hpf_K9_AVG.bw
+
+## Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/3.5hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/3.5hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw
+
+## Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/3.5hpf_K9_1plus2.bw \
+  -b2 $OUTDIR/bws/3.5hpf_K9_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/3.5hpf_K9_AVG.bw
+
+## Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/4hpf_K9_1.bw \
+  -b2 $OUTDIR/bws/4hpf_K9_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw
+
+## Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/4hpf_K9_1plus2.bw \
+  -b2 $OUTDIR/bws/4hpf_K9_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/4hpf_K9_AVG.bw
+
+## Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/K9abcam_4.5hpf_1.bw \
+  -b2 $OUTDIR/bws/K9abcam_4.5hpf_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw
+
+## Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_1plus2.bw \
+  -b2 $OUTDIR/bws/K9abcam_4.5hpf_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_4.5hpf_AVG.bw
+
+##Step 1: Combine replicates 1 and 2 (each scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/K9abcam_24hpf_1.bw \
+  -b2 $OUTDIR/bws/K9abcam_24hpf_2.bw \
+  --operation add \
+  --scaleFactors 0.333:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw
+
+## Step 2: Add replicate 3 (also scaled to 1/3)
+bigwigCompare \
+  -b1 $OUTDIR/bws/bwscomp/K9abcam_24hpf_1plus2.bw \
+  -b2 $OUTDIR/bws/K9abcam_24hpf_3.bw \
+  --operation add \
+  --scaleFactors 1:0.333 \
+  -bs 10 \
+  -p 20 \
+  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
