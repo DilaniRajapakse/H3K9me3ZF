@@ -235,7 +235,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 #  bedtools intersect -a $infile -b $BASEDIR/peaks/blacklist.bed -v > $BASEDIR/peaks/"$base"_final.bed
 #done
 
-module load ucsc/443
+module load ucsc
 mkdir $BASEDIR/bws
 
 for infile in $BASEDIR/bdgrphs/*norm.bga
