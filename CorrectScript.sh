@@ -986,19 +986,32 @@ module load Homer
 #done
 
 #echo "All TE tables processed with gene symbols added."
+BASE_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
+OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables"
+OUTPUT_1KB="${OUTPUT_DIR}/gene_peak_summaries_1kb.txt"
+OUTPUT_5KB="${OUTPUT_DIR}/gene_peak_summaries_5kb.txt"
 
-INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
-OUTPUT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/gene_peak_summaries.txt"
+rm -f "$OUTPUT_1KB" "$OUTPUT_5KB"
 
-rm -f "$OUTPUT"
-
-for file in "$INPUT_DIR"/*with_symbols.tsv; do
+for file in "${BASE_DIR}"/*_TSS1000bp_TE_table_with_symbols.tsv "${BASE_DIR}"/*_TSS5000bp_TE_table_with_symbols.tsv; do
     [ -f "$file" ] || continue
-    echo "Processing $(basename "$file")..." >&2
+
+    filename=$(basename "$file")
+    if [[ "$filename" == *_TSS1000bp_* ]]; then
+        OUTPUT="$OUTPUT_1KB"
+    elif [[ "$filename" == *_TSS5000bp_* ]]; then
+        OUTPUT="$OUTPUT_5KB"
+    else
+        continue
+    fi
 
     awk -F'\t' -v OFS='\t' -v out="$OUTPUT" '
     BEGIN {
-        split("intron_only exon_only both first_exon unannotated", cats)
+        categories["intron_only"]
+        categories["exon_only"]
+        categories["both"]
+        categories["first_exon"]
+        categories["unannotated"]
     }
 
     NR == 1 {
@@ -1014,12 +1027,10 @@ for file in "$INPUT_DIR"/*with_symbols.tsv; do
         tss = $header["TSS_dist"]
         te = $header["TE_overlap_pct"]
 
-        # Clean gene_id (remove parens and extra tokens)
         gsub(/[()]/, "", raw_gid)
         split(raw_gid, a, " ")
         gid = a[1]
 
-        # Skip malformed entries
         if (gid == "" || tp == "" || cat == "") next
 
         key = gid "|" gsym "|" tp
@@ -1053,7 +1064,7 @@ for file in "$INPUT_DIR"/*with_symbols.tsv; do
             }
 
             print "H3K9me3 peaks:" >> out
-            for (c in cats) {
+            for (c in categories) {
                 val = (cat_count[k, c] ? cat_count[k, c] : 0)
                 print "  " val " " c " peaks" >> out
             }
@@ -1069,4 +1080,4 @@ for file in "$INPUT_DIR"/*with_symbols.tsv; do
     }' "$file"
 done
 
-echo "Done. Summaries written to $OUTPUT"
+echo "Finished summarizing 1kb and 5kb gene peak tables."
