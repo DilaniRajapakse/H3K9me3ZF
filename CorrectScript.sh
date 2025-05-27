@@ -992,71 +992,74 @@ OUTPUT_FILE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summar
 
 rm -f "$OUTPUT_FILE"
 
-# Loop through all annotated TE files
 for file in "$INPUT_DIR"/*_with_symbols.tsv; do
     [ -f "$file" ] || continue
     echo "Processing $(basename "$file")..." >&2
 
     awk -F'\t' -v OFS='\t' -v out="$OUTPUT_FILE" '
+    BEGIN {
+        split("intron_only exon_only both first_exon unannotated", cats)
+    }
+
     NR == 1 {
-        for (i = 1; i <= NF; i++) header[i] = $i
+        for (i = 1; i <= NF; i++) header[$i] = i
         next
     }
 
     {
-        gene_id = $1
-        gene_symbol = $(NF)
-        tss_dist = 0; for (i in header) if (header[i] == "TSS_dist") tss_dist = $(i)
-        cat = ""; for (i in header) if (header[i] == "category") cat = $(i)
-        te_pct = ""; for (i in header) if (header[i] == "TE_overlap_pct") te_pct = $(i)
-        tp = ""; for (i in header) if (header[i] == "timepoint") tp = $(i)
+        gid = $header["gene_id"]
+        gsym = $header["gene_symbol"]
+        tp = $header["timepoint"]
+        cat = $header["category"]
+        tss = $header["TSS_dist"]
+        te = $header["TE_overlap_pct"]
 
-        key = gene_id FS gene_symbol FS tp
-        data[key, "total"]++
-        data[key, cat]++
-        data[key, "TE_sum"] += te_pct
-        data[key, "TE_min"] = (key in seen_min) ? (te_pct < data[key, "TE_min"] ? te_pct : data[key, "TE_min"]) : te_pct
-        data[key, "TE_max"] = (key in seen_max) ? (te_pct > data[key, "TE_max"] ? te_pct : data[key, "TE_max"]) : te_pct
-        seen_min[key] = seen_max[key] = 1
+        key = gid "|" gsym "|" tp
 
-        if (tss_dist ~ /^[0-9.+-]+$/ && (tss_dist + 0) >= -1000 && (tss_dist + 0) <= 1000) {
-            data[key, "tss_peak"]++
-            tss_locs[key] = tss_locs[key] "," tss_dist
+        count[key]++
+        cat_count[key, cat]++
+        if (te != "" && te ~ /^[0-9.]+$/) {
+            te_min[key] = (key in te_min) ? (te < te_min[key] ? te : te_min[key]) : te
+            te_max[key] = (key in te_max) ? (te > te_max[key] ? te : te_max[key]) : te
+        }
+
+        if (tss ~ /^-?[0-9.]+$/ && tss + 0 >= -1000 && tss + 0 <= 1000) {
+            tss_peak[key]++
+            tss_pos[key] = (tss_pos[key] ? tss_pos[key] ", " : "") tss
         }
     }
 
     END {
-        for (k in data) {
-            split(k, parts, SUBSEP)
-            gene_id = parts[1]
-            gene_symbol = parts[2]
-            tp = parts[3]
+        for (k in count) {
+            split(k, a, "|")
+            gid = a[1]; gsym = a[2]; tp = a[3]
 
-            if (parts[4] != "") continue
-
-            print "Transcript ID: " gene_id >> out
-            print "Gene Symbol: " gene_symbol >> out
+            print "Transcript ID: " gid >> out
+            print "Gene Symbol: " gsym >> out
             print "Timepoint: " tp >> out
-            if (data[k, "tss_peak"]) {
-                print "TSS peak: Yes (" data[k, "tss_peak"] " peak[s] at" tss_locs[k] ")" >> out
+
+            if (tss_peak[k] > 0) {
+                print "TSS peak: Yes (" tss_peak[k] " peak[s] at: " tss_pos[k] ")" >> out
             } else {
                 print "TSS peak: No" >> out
             }
 
             print "H3K9me3 peaks:" >> out
-            print "  " (data[k, "intron_only"] + 0) " intronic peaks" >> out
-            print "  " (data[k, "exon_only"] + 0) " exonic peaks" >> out
-            print "  " (data[k, "both"] + 0) " exon+intron (both) peaks" >> out
-            print "  " (data[k, "first_exon"] + 0) " first exon peaks" >> out
-            print "  " (data[k, "unannotated"] + 0) " unannotated peaks" >> out
+            for (c in cats) {
+                label = cats[c]
+                val = (cat_count[k, label] ? cat_count[k, label] : 0)
+                print "  " val " " label " peaks" >> out
+            }
 
-            min = sprintf("%.2f", data[k, "TE_min"])
-            max = sprintf("%.2f", data[k, "TE_max"])
-            print "TE overlap range: " min " – " max >> out
+            if (k in te_min && k in te_max) {
+                printf("TE overlap range: %.2f - %.2f\n", te_min[k], te_max[k]) >> out
+            } else {
+                print "TE overlap range: NA" >> out
+            }
+
             print "------------------------------------------------------------" >> out
         }
-    }
-    ' "$file"
+    }' "$file"
 done
 
-echo "Summary written to $OUTPUT_FILE"
+echo "Summary written to: $OUTPUT_FILE"
