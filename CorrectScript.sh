@@ -988,15 +988,15 @@ module load Homer
 #echo "All TE tables processed with gene symbols added."
 
 INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
-OUTPUT_FILE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/gene_peak_summaries.txt"
+OUTPUT="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/gene_peak_summaries.txt"
 
-rm -f "$OUTPUT_FILE"
+rm -f "$OUTPUT"
 
-for file in "$INPUT_DIR"/*_with_symbols.tsv; do
+for file in "$INPUT_DIR"/*with_symbols.tsv; do
     [ -f "$file" ] || continue
     echo "Processing $(basename "$file")..." >&2
 
-    awk -F'\t' -v OFS='\t' -v out="$OUTPUT_FILE" '
+    awk -F'\t' -v OFS='\t' -v out="$OUTPUT" '
     BEGIN {
         split("intron_only exon_only both first_exon unannotated", cats)
     }
@@ -1007,12 +1007,20 @@ for file in "$INPUT_DIR"/*_with_symbols.tsv; do
     }
 
     {
-        gid = $header["gene_id"]
+        raw_gid = $header["gene_id"]
         gsym = $header["gene_symbol"]
         tp = $header["timepoint"]
         cat = $header["category"]
         tss = $header["TSS_dist"]
         te = $header["TE_overlap_pct"]
+
+        # Clean gene_id (remove parens and extra tokens)
+        gsub(/[()]/, "", raw_gid)
+        split(raw_gid, a, " ")
+        gid = a[1]
+
+        # Skip malformed entries
+        if (gid == "" || tp == "" || cat == "") next
 
         key = gid "|" gsym "|" tp
 
@@ -1035,7 +1043,7 @@ for file in "$INPUT_DIR"/*_with_symbols.tsv; do
             gid = a[1]; gsym = a[2]; tp = a[3]
 
             print "Transcript ID: " gid >> out
-            print "Gene Symbol: " gsym >> out
+            print "Gene Symbol: " (gsym == "" ? "NA" : gsym) >> out
             print "Timepoint: " tp >> out
 
             if (tss_peak[k] > 0) {
@@ -1046,9 +1054,8 @@ for file in "$INPUT_DIR"/*_with_symbols.tsv; do
 
             print "H3K9me3 peaks:" >> out
             for (c in cats) {
-                label = cats[c]
-                val = (cat_count[k, label] ? cat_count[k, label] : 0)
-                print "  " val " " label " peaks" >> out
+                val = (cat_count[k, c] ? cat_count[k, c] : 0)
+                print "  " val " " c " peaks" >> out
             }
 
             if (k in te_min && k in te_max) {
@@ -1062,4 +1069,4 @@ for file in "$INPUT_DIR"/*_with_symbols.tsv; do
     }' "$file"
 done
 
-echo "Summary written to: $OUTPUT_FILE"
+echo "Done. Summaries written to $OUTPUT"
