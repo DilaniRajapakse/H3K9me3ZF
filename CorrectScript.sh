@@ -842,38 +842,72 @@
 module load BEDTools
 module load HOMER
 
+# Define directories and inputs
 BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 PEAKS_DIR="$BASEDIR/peaks"
-TE_BED="$BASEDIR/peaks/TEann_35_0.1filt.bed"
+TE_BED="$PEAKS_DIR/TEann_35_0.1filt.bed"
 GTF="$BASEDIR/refann.gtf"
 OUTDIR="$BASEDIR/H3K9me3_summary_tables"
 TMPDIR="$OUTDIR/tmp"
 GENOME="danRer11"
 
+# Make sure input files exist
+[ -f "$TE_BED" ] || { echo "ERROR: TE BED file not found: $TE_BED"; exit 1; }
+[ -f "$GTF" ] || { echo "ERROR: GTF file not found: $GTF"; exit 1; }
+
+# Create output directories
 mkdir -p "$OUTDIR" "$TMPDIR"
 
-for peakfile in "$PEAKS_DIR"/*final.bed; do
+# Enable nullglob so wildcards that match nothing don't return literal strings
+shopt -s nullglob
+peakfiles=("$PEAKS_DIR"/*final.bed)
+
+if [ ${#peakfiles[@]} -eq 0 ]; then
+    echo "ERROR: No peak files found in $PEAKS_DIR"
+    exit 1
+fi
+
+# Loop through each peak file
+for peakfile in "${peakfiles[@]}"; do
     base=$(basename "$peakfile" _final.bed)
-    echo "Processing $base"
+    echo "Processing $base..."
 
     for window in 1000 5000; do
         echo "  TSS window: ${window}bp"
+
         annfile="$TMPDIR/${base}_ann_${window}.txt"
         filtered="$TMPDIR/${base}_filtered_${window}.bed"
+        covfile="$TMPDIR/${base}_cov_${window}.txt"
         outtable="$OUTDIR/${base}_TSS${window}bp_TE_table.tsv"
 
-        # 1. Annotate with HOMER
+        # 1. Annotate peaks
+        echo "    Annotating peaks with HOMER..."
         annotatePeaks.pl "$peakfile" $GENOME -gtf "$GTF" > "$annfile"
+        if [ ! -s "$annfile" ]; then
+            echo "    ERROR: Annotation failed or empty: $annfile"
+            continue
+        fi
 
-        # 2. Filter to peaks within TSS window and keep key columns
+        # 2. Filter to peaks near TSS
+        echo "    Filtering to peaks within $window bp of TSS..."
         awk -v W=$window 'BEGIN{OFS="\t"} NR>1 && sqrt($10*$10)<=W {
             print $2,$3,$4,$1,$8,$10,$11,$12
         }' "$annfile" > "$filtered"
+        if [ ! -s "$filtered" ]; then
+            echo "    WARNING: No peaks within ${window}bp of TSS for $base"
+            continue
+        fi
 
-        # 3. Compute TE overlap % using bedtools coverage
-        bedtools coverage -a "$filtered" -b "$TE_BED" -sorted -f 0.0001 > "$TMPDIR/${base}_cov_${window}.txt"
+        # 3. TE overlap using bedtools
+        echo "    Calculating TE overlap..."
+        bedtools coverage -a "$filtered" -b "$TE_BED" -sorted -f 0.0001 > "$covfile"
+        if [ ! -s "$covfile" ]; then
+            echo "    ERROR: TE coverage failed for $filtered"
+            continue
+        fi
 
-        # 4. Format output table
+        # 4. Format final output
+        echo "    Writing output table..."
         awk -v time="$base" -v win="$window" '
         BEGIN { OFS="\t"; print "gene_id","gene_name","peak_id","TSS_dist","category","TE_overlap_pct","TE_bin","timepoint" }
         {
@@ -892,11 +926,10 @@ for peakfile in "$PEAKS_DIR"/*final.bed; do
             else if (overlap_pct <= 75) bin = "<=75%";
 
             print gene_id, gene_name, peak_id, tss_dist, region, overlap_pct, bin, time
-        }' "$TMPDIR/${base}_cov_${window}.txt" > "$outtable"
+        }' "$covfile" > "$outtable"
 
-        echo "  Output: $outtable"
+        echo "    Output written: $outtable"
     done
 done
 
-echo "All timepoints processed."
-
+echo "All timepoints processed successfully."
