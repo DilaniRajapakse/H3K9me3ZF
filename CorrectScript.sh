@@ -939,50 +939,124 @@ module load Homer
 #echo "All timepoints processed."
 
 ##5.27.25 Get gene names
-GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables"
-OUTPUT_DIR="$INPUT_DIR/with_symbols"
-LOOKUP="$OUTPUT_DIR/zebrafish_ensid_to_symbol.tsv"
-mkdir -p "$OUTPUT_DIR"
+#GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+#INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables"
+#OUTPUT_DIR="$INPUT_DIR/with_symbols"
+#LOOKUP="$OUTPUT_DIR/zebrafish_ensid_to_symbol.tsv"
+#mkdir -p "$OUTPUT_DIR"
 
 # === STEP 1: Extract gene symbol mappings from GTF ===
-echo "Extracting gene_id and transcript_id to gene_name mappings from GTF..."
+#echo "Extracting gene_id and transcript_id to gene_name mappings from GTF..."
 
-awk -F'\t' '
-$3 == "gene" || $3 == "transcript" {
-    match($9, /gene_id "([^"]+)"/, gid);
-    match($9, /transcript_id "([^"]+)"/, tid);
-    match($9, /gene_name "([^"]+)"/, gname);
-    if (gid[1] && gname[1]) print gid[1] "\t" gname[1];
-    if (tid[1] && gname[1]) print tid[1] "\t" gname[1];
-}' "$GTF" | sort -u > "$LOOKUP"
+#awk -F'\t' '
+#$3 == "gene" || $3 == "transcript" {
+#    match($9, /gene_id "([^"]+)"/, gid);
+#    match($9, /transcript_id "([^"]+)"/, tid);
+#    match($9, /gene_name "([^"]+)"/, gname);
+#    if (gid[1] && gname[1]) print gid[1] "\t" gname[1];
+#    if (tid[1] && gname[1]) print tid[1] "\t" gname[1];
+#}' "$GTF" | sort -u > "$LOOKUP"
 
-echo "Lookup table saved to: $LOOKUP"
+#echo "Lookup table saved to: $LOOKUP"
 
 # === STEP 2: Annotate all TE_table files with gene symbols ===
-echo "Annotating TE tables with gene symbols..."
+#echo "Annotating TE tables with gene symbols..."
 
-for file in "$INPUT_DIR"/*_TE_table.tsv; do
+#for file in "$INPUT_DIR"/*_TE_table.tsv; do
+#    [ -f "$file" ] || continue
+#    base=$(basename "$file" .tsv)
+#    output="$OUTPUT_DIR/${base}_with_symbols.tsv"
+
+#    awk -F'\t' -v OFS='\t' -v mapfile="$LOOKUP" '
+#    BEGIN {
+#        while ((getline < mapfile) > 0) {
+#            id_to_name[$1] = $2;
+#        }
+#    }
+#    NR == 1 {
+#        print $0, "gene_symbol";
+#        next;
+#    }
+#    {
+#        symbol = ($1 in id_to_name) ? id_to_name[$1] : "NA";
+#        print $0, symbol;
+#    }' "$file" > "$output"
+
+#    echo "Annotated: $output"
+#done
+
+#echo "All TE tables processed with gene symbols added."
+
+INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
+OUTPUT_FILE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/gene_peak_summaries.txt"
+
+rm -f "$OUTPUT_FILE"
+
+# Loop through all annotated TE files
+for file in "$INPUT_DIR"/*_with_symbols.tsv; do
     [ -f "$file" ] || continue
-    base=$(basename "$file" .tsv)
-    output="$OUTPUT_DIR/${base}_with_symbols.tsv"
+    echo "Processing $(basename "$file")..." >&2
 
-    awk -F'\t' -v OFS='\t' -v mapfile="$LOOKUP" '
-    BEGIN {
-        while ((getline < mapfile) > 0) {
-            id_to_name[$1] = $2;
+    awk -F'\t' -v OFS='\t' -v out="$OUTPUT_FILE" '
+    NR == 1 {
+        for (i = 1; i <= NF; i++) header[i] = $i
+        next
+    }
+
+    {
+        gene_id = $1
+        gene_symbol = $(NF)
+        tss_dist = 0; for (i in header) if (header[i] == "TSS_dist") tss_dist = $(i)
+        cat = ""; for (i in header) if (header[i] == "category") cat = $(i)
+        te_pct = ""; for (i in header) if (header[i] == "TE_overlap_pct") te_pct = $(i)
+        tp = ""; for (i in header) if (header[i] == "timepoint") tp = $(i)
+
+        key = gene_id FS gene_symbol FS tp
+        data[key, "total"]++
+        data[key, cat]++
+        data[key, "TE_sum"] += te_pct
+        data[key, "TE_min"] = (key in seen_min) ? (te_pct < data[key, "TE_min"] ? te_pct : data[key, "TE_min"]) : te_pct
+        data[key, "TE_max"] = (key in seen_max) ? (te_pct > data[key, "TE_max"] ? te_pct : data[key, "TE_max"]) : te_pct
+        seen_min[key] = seen_max[key] = 1
+
+        if (tss_dist ~ /^[0-9.+-]+$/ && (tss_dist + 0) >= -1000 && (tss_dist + 0) <= 1000) {
+            data[key, "tss_peak"]++
+            tss_locs[key] = tss_locs[key] "," tss_dist
         }
     }
-    NR == 1 {
-        print $0, "gene_symbol";
-        next;
-    }
-    {
-        symbol = ($1 in id_to_name) ? id_to_name[$1] : "NA";
-        print $0, symbol;
-    }' "$file" > "$output"
 
-    echo "Annotated: $output"
+    END {
+        for (k in data) {
+            split(k, parts, SUBSEP)
+            gene_id = parts[1]
+            gene_symbol = parts[2]
+            tp = parts[3]
+
+            if (parts[4] != "") continue
+
+            print "Transcript ID: " gene_id >> out
+            print "Gene Symbol: " gene_symbol >> out
+            print "Timepoint: " tp >> out
+            if (data[k, "tss_peak"]) {
+                print "TSS peak: Yes (" data[k, "tss_peak"] " peak[s] at" tss_locs[k] ")" >> out
+            } else {
+                print "TSS peak: No" >> out
+            }
+
+            print "H3K9me3 peaks:" >> out
+            print "  " (data[k, "intron_only"] + 0) " intronic peaks" >> out
+            print "  " (data[k, "exon_only"] + 0) " exonic peaks" >> out
+            print "  " (data[k, "both"] + 0) " exon+intron (both) peaks" >> out
+            print "  " (data[k, "first_exon"] + 0) " first exon peaks" >> out
+            print "  " (data[k, "unannotated"] + 0) " unannotated peaks" >> out
+
+            min = sprintf("%.2f", data[k, "TE_min"])
+            max = sprintf("%.2f", data[k, "TE_max"])
+            print "TE overlap range: " min " – " max >> out
+            print "------------------------------------------------------------" >> out
+        }
+    }
+    ' "$file"
 done
 
-echo "All TE tables processed with gene symbols added."
+echo "Summary written to $OUTPUT_FILE"
