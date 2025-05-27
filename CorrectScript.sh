@@ -844,30 +844,31 @@ module load Homer
 
 BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 PEAKS_DIR="$BASEDIR/peaks"
-TE_BED="$PEAKS_DIR/TEann_35_0.1filt.bed"
+TE_BED="$PEAKS_DIR/TEann_35_0.1filt.sorted.bed"
 GTF="$BASEDIR/refann.gtf"
 OUTDIR="$BASEDIR/H3K9me3_summary_tables"
 TMPDIR="$OUTDIR/tmp"
 GENOME="danRer11"
 CHRLEN="$BASEDIR/genome/chrNameLength.txt"
 
-# Validate input files
-[ -f "$TE_BED" ] || { echo "ERROR: TE BED file not found: $TE_BED"; exit 1; }
-[ -f "$GTF" ] || { echo "ERROR: GTF file not found: $GTF"; exit 1; }
+[ -f "$GTF" ] || { echo "ERROR: GTF not found: $GTF"; exit 1; }
+[ -f "$CHRLEN" ] || { echo "ERROR: chrNameLength.txt not found: $CHRLEN"; exit 1; }
 
-# Create output directories
 mkdir -p "$OUTDIR" "$TMPDIR"
 
-# Enable nullglob so wildcards that match nothing don't return literal strings
+if [ ! -f "$TE_BED" ]; then
+    echo "Sorting TE BED file..."
+    bedtools sort -i "$PEAKS_DIR/TEann_35_0.1filt.bed" -g "$CHRLEN" > "$TE_BED"
+fi
+
 shopt -s nullglob
 peakfiles=("$PEAKS_DIR"/*final.bed)
 
 if [ ${#peakfiles[@]} -eq 0 ]; then
-    echo "ERROR: No peak files found in $PEAKS_DIR"
+    echo "ERROR: No peak files found."
     exit 1
 fi
 
-# Loop through each peak file
 for peakfile in "${peakfiles[@]}"; do
     base=$(basename "$peakfile" _final.bed)
     echo "Processing $base..."
@@ -880,47 +881,45 @@ for peakfile in "${peakfiles[@]}"; do
         covfile="$TMPDIR/${base}_cov_${window}.txt"
         outtable="$OUTDIR/${base}_TSS${window}bp_TE_table.tsv"
 
-        # 1. Annotate peaks
         echo "    Annotating peaks with HOMER..."
         annotatePeaks.pl "$peakfile" $GENOME -gtf "$GTF" > "$annfile"
         if [ ! -s "$annfile" ]; then
-            echo "    ERROR: Annotation failed or empty: $annfile"
+            echo "    ERROR: Annotation failed: $annfile"
             continue
         fi
 
-        # 2. Filter to peaks near TSS
-        echo "    Filtering to peaks within $window bp of TSS..."
-        awk -v W=$window 'BEGIN{OFS="\t"} NR>1 && sqrt($10*$10)<=W {
-            print $2,$3,$4,$1,$8,$10,$11,$12
+        echo "    Filtering and formatting..."
+        awk -v W=$window 'BEGIN{OFS="\t"}
+        NR > 1 && sqrt($10*$10) <= W {
+            chr=$2; start=$3; end=$4; peakID=$1;
+            category="unannotated";
+            if ($8 ~ /exon/ && $8 !~ /intron/) category="exon_only";
+            else if ($8 ~ /intron/ && $8 !~ /exon/) category="intron_only";
+            else if ($8 ~ /exon/ && $8 ~ /intron/) category="both";
+            else if ($8 ~ /firstExon/) category="first_exon";
+
+            print chr, start, end, peakID, category, $10, $11, $12
         }' "$annfile" > "$filtered.unsorted"
 
-        # 3. Sort the filtered file for bedtools
-        echo "    Sorting BED file for TE overlap..."
-        if [ -f "$CHRLEN" ]; then
-            bedtools sort -i "$filtered.unsorted" -g "$CHRLEN" > "$filtered"
-        else
-            sort -k1,1 -k2,2n "$filtered.unsorted" > "$filtered"
-        fi
+        bedtools sort -i "$filtered.unsorted" -g "$CHRLEN" > "$filtered"
         rm "$filtered.unsorted"
 
-        # 4. Calculate TE overlap
         echo "    Calculating TE overlap..."
         bedtools coverage -a "$filtered" -b "$TE_BED" -sorted -f 0.0001 > "$covfile"
         if [ ! -s "$covfile" ]; then
-            echo "    ERROR: TE coverage failed for $filtered"
+            echo "    ERROR: TE coverage failed: $covfile"
             continue
         fi
 
-        # 5. Format output table
         echo "    Writing output table..."
         awk -v time="$base" -v win="$window" '
         BEGIN { OFS="\t"; print "gene_id","gene_name","peak_id","TSS_dist","category","TE_overlap_pct","TE_bin","timepoint" }
         {
             gene_id = $7;
             gene_name = $8;
-            peak_id = $3;
+            peak_id = $4;
             tss_dist = $6;
-            region = $5;
+            category = $5;
             overlap_pct = $NF;
             bin = "100%";
 
@@ -930,11 +929,11 @@ for peakfile in "${peakfiles[@]}"; do
             else if (overlap_pct <= 50) bin = "<=50%";
             else if (overlap_pct <= 75) bin = "<=75%";
 
-            print gene_id, gene_name, peak_id, tss_dist, region, overlap_pct, bin, time
+            print gene_id, gene_name, peak_id, tss_dist, category, overlap_pct, bin, time
         }' "$covfile" > "$outtable"
 
         echo "    Output written: $outtable"
     done
 done
 
-echo "All timepoints processed successfully."
+echo "All timepoints processed."
