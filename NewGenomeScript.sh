@@ -384,29 +384,6 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 #  -p 20 \
 #  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
 
-##Testing 5.27.25. Script that uses new genome annotation to find peaks
-ANNOTDIR=/scratch/dr27977/H3K9me3_Zebrafish/NewGenome/annotation
-FEATURE_TABLE=$ANNOTDIR/GCF_049306965.1_GRCz12tu_feature_table.txt
-GTF_IN=$ANNOTDIR/GCF_049306965.1_GRCz12tu_genomic.gtf
-GTF_OUT=$ANNOTDIR/GRCz12tu_with_gene_names.gtf
+##Testing 5.27.25. Script that uses new genome annotation to find peaks. Not able to do so until new gene annotation comes out
 
-# Step 1: Extract RefSeq gene ID to gene name mapping
-awk -F'\t' '$1 == "Gene" && $8 != "-" {print $5"\t"$8}' $FEATURE_TABLE > $ANNOTDIR/gene_id_to_name.map
-
-# Step 2: Inject gene_name into GTF
-awk -v map=$ANNOTDIR/gene_id_to_name.map '
-BEGIN {
-  FS = OFS = "\t"
-  while ((getline < map) > 0) {
-    id2name[$1] = $2
-  }
-}
-{
-  match($9, /gene_id "([^"]+)"/, a)
-  gene_id = a[1]
-  if (gene_id in id2name && $9 !~ /gene_name/) {
-    $9 = $9 "; gene_name \"" id2name[gene_id] "\""
-  }
-  print
-}' $GTF_IN > $GTF_OUT
 

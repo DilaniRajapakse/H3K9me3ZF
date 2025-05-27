@@ -837,34 +837,66 @@
 #EOF
 
 ## make a summary table
-module load Python
 
-python3 <<EOF
-import os
-from glob import glob
+##5.27.25 Trying again to make summary tables
+module load BEDTools
+module load HOMER
 
-base_dir = "/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_TSS_TE_categories_with_genes"
-output_dir = os.path.join(base_dir, "summary_output")
-os.makedirs(output_dir, exist_ok=True)
+BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+PEAKS_DIR="$BASEDIR/peaks"
+TE_BED="$BASEDIR/peaks/TEann_35_0.1filt.bed"
+GTF="$BASEDIR/refann.gtf"
+OUTDIR="$BASEDIR/H3K9me3_summary_tables"
+TMPDIR="$OUTDIR/tmp"
+GENOME="danRer11"
 
-output_file = os.path.join(output_dir, "H3K9me3_TE_Summary.tsv")
-with open(output_file, "w") as out:
-    out.write("Timepoint\tCategory\tTE_Overlap_Bin\tENSDAR_ID\n")
+mkdir -p "$OUTDIR" "$TMPDIR"
 
-    for path in glob(base_dir + "/**/*_genes.txt", recursive=True):
-        filename = os.path.basename(path)
-        parent_dir = os.path.basename(os.path.dirname(path))
+for peakfile in "$PEAKS_DIR"/*final.bed; do
+    base=$(basename "$peakfile" _final.bed)
+    echo "Processing $base"
 
-        try:
-            timepoint = parent_dir.split("_K9_")[0]
-            category = parent_dir.split("_K9_")[1]
-            te_bin = filename.split("_bin_")[1].split("_")[0]
-        except IndexError:
-            continue  # skip malformed files
+    for window in 1000 5000; do
+        echo "  TSS window: ${window}bp"
+        annfile="$TMPDIR/${base}_ann_${window}.txt"
+        filtered="$TMPDIR/${base}_filtered_${window}.bed"
+        outtable="$OUTDIR/${base}_TSS${window}bp_TE_table.tsv"
 
-        with open(path) as f:
-            for line in f:
-                gene = line.strip()
-                if gene and (gene.startswith("ENSDART") or gene.startswith("ENSDARG")):
-                    out.write(f"{timepoint}\t{category}\t{te_bin}\t{gene}\n")
-EOF
+        # 1. Annotate with HOMER
+        annotatePeaks.pl "$peakfile" $GENOME -gtf "$GTF" > "$annfile"
+
+        # 2. Filter to peaks within TSS window and keep key columns
+        awk -v W=$window 'BEGIN{OFS="\t"} NR>1 && sqrt($10*$10)<=W {
+            print $2,$3,$4,$1,$8,$10,$11,$12
+        }' "$annfile" > "$filtered"
+
+        # 3. Compute TE overlap % using bedtools coverage
+        bedtools coverage -a "$filtered" -b "$TE_BED" -sorted -f 0.0001 > "$TMPDIR/${base}_cov_${window}.txt"
+
+        # 4. Format output table
+        awk -v time="$base" -v win="$window" '
+        BEGIN { OFS="\t"; print "gene_id","gene_name","peak_id","TSS_dist","category","TE_overlap_pct","TE_bin","timepoint" }
+        {
+            gene_id = $7;
+            gene_name = $8;
+            peak_id = $4;
+            tss_dist = $6;
+            region = $5;
+            overlap_pct = $NF;
+            bin = "100%";
+
+            if (overlap_pct == 0) bin = "0%";
+            else if (overlap_pct <= 10) bin = "<=10%";
+            else if (overlap_pct <= 25) bin = "<=25%";
+            else if (overlap_pct <= 50) bin = "<=50%";
+            else if (overlap_pct <= 75) bin = "<=75%";
+
+            print gene_id, gene_name, peak_id, tss_dist, region, overlap_pct, bin, time
+        }' "$TMPDIR/${base}_cov_${window}.txt" > "$outtable"
+
+        echo "  Output: $outtable"
+    done
+done
+
+echo "All timepoints processed."
+
