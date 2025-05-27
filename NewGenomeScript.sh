@@ -385,29 +385,28 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 #  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
 
 ##Testing 5.27.25. Script that uses new genome annotation to find peaks
-OUTDIR=/scratch/dr27977/H3K9me3_Zebrafish/NewGenome/annotation
-mkdir -p $OUTDIR
-cd $OUTDIR
+ANNOTDIR=/scratch/dr27977/H3K9me3_Zebrafish/NewGenome/annotation
+FEATURE_TABLE=$ANNOTDIR/GCF_049306965.1_GRCz12tu_feature_table.txt
+GTF_IN=$ANNOTDIR/GCF_049306965.1_GRCz12tu_genomic.gtf
+GTF_OUT=$ANNOTDIR/GRCz12tu_with_gene_names.gtf
 
-# Step 1: Download the NCBI GFF3 annotation
-curl -O https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.gff.gz
-gunzip GCF_049306965.1_GRCz12tu_genomic.gff.gz
+# Step 1: Extract RefSeq gene ID to gene name mapping
+awk -F'\t' '$1 == "Gene" && $8 != "-" {print $5"\t"$8}' $FEATURE_TABLE > $ANNOTDIR/gene_id_to_name.map
 
-# Step 2: Download the NCBI feature table for gene names (optional for better annotations)
-curl -O https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_feature_table.txt.gz
-gunzip GCF_049306965.1_GRCz12tu_feature_table.txt.gz
+# Step 2: Inject gene_name into GTF
+awk -v map=$ANNOTDIR/gene_id_to_name.map '
+BEGIN {
+  FS = OFS = "\t"
+  while ((getline < map) > 0) {
+    id2name[$1] = $2
+  }
+}
+{
+  match($9, /gene_id "([^"]+)"/, a)
+  gene_id = a[1]
+  if (gene_id in id2name && $9 !~ /gene_name/) {
+    $9 = $9 "; gene_name \"" id2name[gene_id] "\""
+  }
+  print
+}' $GTF_IN > $GTF_OUT
 
-# Step 3: Convert GFF to GTF using gffread
-module load gffread  # if using a module system
-gffread GCF_049306965.1_GRCz12tu_genomic.gff -T -o GCF_049306965.1_GRCz12tu_genomic.gtf
-
-# Step 4: Optional — patch in gene_name if missing (IGV likes it)
-
-# Only do this if gene_name isn't present
-awk 'BEGIN{FS=OFS="\t"} $3=="gene" && $9 !~ /gene_name/ {
-    match($9, /gene_id "([^"]+)"/, a);
-    if (a[1] != "") {
-        $9 = $9 "; gene_name \"" a[1] "\""
-    }
-    print
-} $3!="gene" || $9 ~ /gene_name/ { print }' GCF_049306965.1_GRCz12tu_genomic.gtf > GRCz12tu_for_IGV.gtf
