@@ -842,7 +842,6 @@
 module load BEDTools
 module load Homer
 
-# Define directories and inputs
 BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 PEAKS_DIR="$BASEDIR/peaks"
 TE_BED="$PEAKS_DIR/TEann_35_0.1filt.bed"
@@ -850,8 +849,9 @@ GTF="$BASEDIR/refann.gtf"
 OUTDIR="$BASEDIR/H3K9me3_summary_tables"
 TMPDIR="$OUTDIR/tmp"
 GENOME="danRer11"
+CHRLEN="$BASEDIR/genome/chrNameLength.txt"
 
-# Make sure input files exist
+# Validate input files
 [ -f "$TE_BED" ] || { echo "ERROR: TE BED file not found: $TE_BED"; exit 1; }
 [ -f "$GTF" ] || { echo "ERROR: GTF file not found: $GTF"; exit 1; }
 
@@ -892,13 +892,18 @@ for peakfile in "${peakfiles[@]}"; do
         echo "    Filtering to peaks within $window bp of TSS..."
         awk -v W=$window 'BEGIN{OFS="\t"} NR>1 && sqrt($10*$10)<=W {
             print $2,$3,$4,$1,$8,$10,$11,$12
-        }' "$annfile" > "$filtered"
-        if [ ! -s "$filtered" ]; then
-            echo "    WARNING: No peaks within ${window}bp of TSS for $base"
-            continue
-        fi
+        }' "$annfile" > "$filtered.unsorted"
 
-        # 3. TE overlap using bedtools
+        # 3. Sort the filtered file for bedtools
+        echo "    Sorting BED file for TE overlap..."
+        if [ -f "$CHRLEN" ]; then
+            bedtools sort -i "$filtered.unsorted" -g "$CHRLEN" > "$filtered"
+        else
+            sort -k1,1 -k2,2n "$filtered.unsorted" > "$filtered"
+        fi
+        rm "$filtered.unsorted"
+
+        # 4. Calculate TE overlap
         echo "    Calculating TE overlap..."
         bedtools coverage -a "$filtered" -b "$TE_BED" -sorted -f 0.0001 > "$covfile"
         if [ ! -s "$covfile" ]; then
@@ -906,14 +911,14 @@ for peakfile in "${peakfiles[@]}"; do
             continue
         fi
 
-        # 4. Format final output
+        # 5. Format output table
         echo "    Writing output table..."
         awk -v time="$base" -v win="$window" '
         BEGIN { OFS="\t"; print "gene_id","gene_name","peak_id","TSS_dist","category","TE_overlap_pct","TE_bin","timepoint" }
         {
             gene_id = $7;
             gene_name = $8;
-            peak_id = $4;
+            peak_id = $3;
             tss_dist = $6;
             region = $5;
             overlap_pct = $NF;
