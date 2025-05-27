@@ -388,57 +388,95 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 module load HOMER
 module load SAMtools
 
-# Set base directory
+# Define paths
 OUTDIR=/scratch/dr27977/H3K9me3_Zebrafish/NewGenome
 ANNOTDIR=$OUTDIR/annotation
-PEAKDIR=$OUTDIR/peaks
-ANNDIR=$PEAKDIR/ann
+BEDDIR=$OUTDIR/peaks
+RENAMEDBED=$OUTDIR/peaks_renamed
+ANNOUT=$OUTDIR/peaks/ann
+GTF=$ANNOTDIR/GRCz12tu.gtf
+GTF_RENAMED=$ANNOTDIR/GRCz12tu_renamed.gtf
+FASTA=$ANNOTDIR/GRCz12tu.fa
+GENOME=$ANNOTDIR/GRCz12tu.genome
+ASSEMBLY_REPORT=$ANNOTDIR/GCF_049306965.1_GRCz12tu_assembly_report.txt
+MAP=$ANNOTDIR/refseq_to_chr.map
 
-mkdir -p $ANNOTDIR $ANNDIR
+mkdir -p $ANNOTDIR $RENAMEDBED $ANNOUT
 
-# Download GTF and genome FASTA
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.gtf.gz | gunzip -c > $ANNOTDIR/GRCz12tu.gtf
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.fna.gz | gunzip -c > $ANNOTDIR/GRCz12tu.fa
+# Step 1: Download GTF and assembly report
+echo "Downloading GTF and assembly report..."
+curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.gtf.gz | gunzip -c > $GTF
+curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_assembly_report.txt -o $ASSEMBLY_REPORT
 
-# Create genome size file
-samtools faidx $ANNOTDIR/GRCz12tu.fa
-cut -f1,2 $ANNOTDIR/GRCz12tu.fa.fai > $ANNOTDIR/GRCz12tu.genome
+# Step 2: Generate mapping file
+echo "Creating RefSeq to chromosome mapping..."
+awk -F '\t' '$0 !~ /^#/ && $10 == "assembled-molecule" {print $1, $NF}' OFS='\t' $ASSEMBLY_REPORT > $MAP
 
-# Annotate peaks using HOMER with GRCz12tu
-for infile in $PEAKDIR/*final.bed
+# Step 3: Rename GTF contigs
+echo "Renaming GTF contigs..."
+awk -v mapfile="$MAP" '
+  BEGIN {
+    while ((getline < mapfile) > 0) {
+      map[$1] = $2
+    }
+  }
+  {
+    if ($1 in map) $1 = map[$1]
+    print
+  }
+' $GTF > $GTF_RENAMED
+
+# Step 4: Rename BED contigs
+echo "Renaming BED contigs..."
+for bedfile in $BEDDIR/*final.bed
 do
-  base=$(basename $infile final.bed)
-  annotatePeaks.pl $infile none \
-    -gtf $ANNOTDIR/GRCz12tu.gtf \
-    -genome $ANNOTDIR/GRCz12tu.genome \
-    > $ANNDIR/${base}.maskann.txt
+  base=$(basename $bedfile)
+  awk -v mapfile="$MAP" '
+    BEGIN {
+      while ((getline < mapfile) > 0) {
+        map[$1] = $2
+      }
+    }
+    {
+      if ($1 in map) $1 = map[$1]
+      print
+    }
+  ' $bedfile > $RENAMEDBED/$base
 done
 
-# Filter peaks within ±1 kb of TSS
-for infile in $ANNDIR/*maskann.txt
-do
-  base=$(basename $infile .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) <= 1000' $infile > $ANNDIR/${base}.within1kb_TSS.txt
-done
+# Step 5: Create genome size file from FASTA
+if [ ! -f $GENOME ]; then
+  echo "Downloading and indexing genome FASTA..."
+  curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.fna.gz | gunzip -c > $FASTA
+  samtools faidx $FASTA
+  cut -f1,2 $FASTA.fai > $GENOME
+fi
 
-# Filter peaks within ±5 kb of TSS
-for infile in $ANNDIR/*maskann.txt
+# Step 6: Run HOMER annotation
+echo "Running HOMER..."
+for file in $RENAMEDBED/*final.bed
 do
-  base=$(basename $infile .maskann.txt)
-  awk -F'\t' 'sqrt($10*$10) <= 5000' $infile > $ANNDIR/${base}.within5kb_TSS.txt
-done
+  base=$(basename $file final.bed)
 
-# Classify by exon/intron/both
-for infile in $ANNDIR/*maskann.txt
-do
-  base=$(basename $infile .maskann.txt)
+  annotatePeaks.pl $file none \
+    -gtf $GTF_RENAMED \
+    -genome $GENOME \
+    > $ANNOUT/${base}.maskann.txt
+
+  # Filter ±1 kb of TSS
+  awk -F'\t' 'sqrt($10*$10) <= 1000' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.within1kb_TSS.txt
+
+  # Filter ±5 kb of TSS
+  awk -F'\t' 'sqrt($10*$10) <= 5000' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.within5kb_TSS.txt
 
   # Exon only
-  awk -F'\t' '$8 ~ /exon/ && $8 !~ /intron/' $infile > $ANNDIR/${base}.exon_only.txt
+  awk -F'\t' '$8 ~ /exon/ && $8 !~ /intron/' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.exon_only.txt
 
   # Intron only
-  awk -F'\t' '$8 ~ /intron/ && $8 !~ /exon/' $infile > $ANNDIR/${base}.intron_only.txt
+  awk -F'\t' '$8 ~ /intron/ && $8 !~ /exon/' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.intron_only.txt
 
-  # Both exon and intron
-  awk -F'\t' '$8 ~ /exon/ && $8 ~ /intron/' $infile > $ANNDIR/${base}.exon_and_intron.txt
+  # Exon and intron
+  awk -F'\t' '$8 ~ /exon/ && $8 ~ /intron/' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.exon_and_intron.txt
 done
+
+echo "Annotation and classification completed."
