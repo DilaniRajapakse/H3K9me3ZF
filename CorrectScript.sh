@@ -840,7 +840,7 @@
 
 ##5.27.25 Trying again to make summary tables
 module load BEDTools
-module load HOMER
+module load Homer
 
 # Define directories and inputs
 BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
