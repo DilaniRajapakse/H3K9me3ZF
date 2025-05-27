@@ -385,98 +385,29 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/NewGenome"
 #  -o $OUTDIR/bws/bwscomp/K9abcam_24hpf_AVG.bw
 
 ##Testing 5.27.25. Script that uses new genome annotation to find peaks
-module load HOMER
-module load SAMtools
+OUTDIR=/scratch/dr27977/H3K9me3_Zebrafish/NewGenome/annotation
+mkdir -p $OUTDIR
+cd $OUTDIR
 
-# Define paths
-OUTDIR=/scratch/dr27977/H3K9me3_Zebrafish/NewGenome
-ANNOTDIR=$OUTDIR/annotation
-BEDDIR=$OUTDIR/peaks
-RENAMEDBED=$OUTDIR/peaks_renamed
-ANNOUT=$OUTDIR/peaks/ann
-GTF=$ANNOTDIR/GRCz12tu.gtf
-GTF_RENAMED=$ANNOTDIR/GRCz12tu_renamed.gtf
-FASTA=$ANNOTDIR/GRCz12tu.fa
-GENOME=$ANNOTDIR/GRCz12tu.genome
-ASSEMBLY_REPORT=$ANNOTDIR/GCF_049306965.1_GRCz12tu_assembly_report.txt
-MAP=$ANNOTDIR/refseq_to_chr.map
+# Step 1: Download the NCBI GFF3 annotation
+curl -O https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.gff.gz
+gunzip GCF_049306965.1_GRCz12tu_genomic.gff.gz
 
-mkdir -p $ANNOTDIR $RENAMEDBED $ANNOUT
+# Step 2: Download the NCBI feature table for gene names (optional for better annotations)
+curl -O https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_feature_table.txt.gz
+gunzip GCF_049306965.1_GRCz12tu_feature_table.txt.gz
 
-# Step 1: Download GTF and assembly report
-echo "Downloading GTF and assembly report..."
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.gtf.gz | gunzip -c > $GTF
-curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_assembly_report.txt -o $ASSEMBLY_REPORT
+# Step 3: Convert GFF to GTF using gffread
+module load gffread  # if using a module system
+gffread GCF_049306965.1_GRCz12tu_genomic.gff -T -o GCF_049306965.1_GRCz12tu_genomic.gtf
 
-# Step 2: Generate mapping file
-echo "Creating RefSeq to chromosome mapping..."
-awk -F '\t' '$0 !~ /^#/ && $10 == "assembled-molecule" {print $1, $NF}' OFS='\t' $ASSEMBLY_REPORT > $MAP
+# Step 4: Optional — patch in gene_name if missing (IGV likes it)
 
-# Step 3: Rename GTF contigs
-echo "Renaming GTF contigs..."
-awk -v mapfile="$MAP" '
-  BEGIN {
-    while ((getline < mapfile) > 0) {
-      map[$1] = $2
+# Only do this if gene_name isn't present
+awk 'BEGIN{FS=OFS="\t"} $3=="gene" && $9 !~ /gene_name/ {
+    match($9, /gene_id "([^"]+)"/, a);
+    if (a[1] != "") {
+        $9 = $9 "; gene_name \"" a[1] "\""
     }
-  }
-  {
-    if ($1 in map) $1 = map[$1]
     print
-  }
-' $GTF > $GTF_RENAMED
-
-# Step 4: Rename BED contigs
-echo "Renaming BED contigs..."
-for bedfile in $BEDDIR/*final.bed
-do
-  base=$(basename $bedfile)
-  awk -v mapfile="$MAP" '
-    BEGIN {
-      while ((getline < mapfile) > 0) {
-        map[$1] = $2
-      }
-    }
-    {
-      if ($1 in map) $1 = map[$1]
-      print
-    }
-  ' $bedfile > $RENAMEDBED/$base
-done
-
-# Step 5: Create genome size file from FASTA
-if [ ! -f $GENOME ]; then
-  echo "Downloading and indexing genome FASTA..."
-  curl -s https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/049/306/965/GCF_049306965.1_GRCz12tu/GCF_049306965.1_GRCz12tu_genomic.fna.gz | gunzip -c > $FASTA
-  samtools faidx $FASTA
-  cut -f1,2 $FASTA.fai > $GENOME
-fi
-
-# Step 6: Run HOMER annotation
-echo "Running HOMER..."
-for file in $RENAMEDBED/*final.bed
-do
-  base=$(basename $file final.bed)
-
-  annotatePeaks.pl $file none \
-    -gtf $GTF_RENAMED \
-    -genome $GENOME \
-    > $ANNOUT/${base}.maskann.txt
-
-  # Filter ±1 kb of TSS
-  awk -F'\t' 'sqrt($10*$10) <= 1000' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.within1kb_TSS.txt
-
-  # Filter ±5 kb of TSS
-  awk -F'\t' 'sqrt($10*$10) <= 5000' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.within5kb_TSS.txt
-
-  # Exon only
-  awk -F'\t' '$8 ~ /exon/ && $8 !~ /intron/' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.exon_only.txt
-
-  # Intron only
-  awk -F'\t' '$8 ~ /intron/ && $8 !~ /exon/' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.intron_only.txt
-
-  # Exon and intron
-  awk -F'\t' '$8 ~ /exon/ && $8 ~ /intron/' $ANNOUT/${base}.maskann.txt > $ANNOUT/${base}.exon_and_intron.txt
-done
-
-echo "Annotation and classification completed."
+} $3!="gene" || $9 ~ /gene_name/ { print }' GCF_049306965.1_GRCz12tu_genomic.gtf > GRCz12tu_for_IGV.gtf
