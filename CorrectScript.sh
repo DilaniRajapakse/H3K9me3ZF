@@ -842,98 +842,147 @@
 module load BEDTools
 module load Homer
 
-BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
-PEAKS_DIR="$BASEDIR/peaks"
-TE_BED="$PEAKS_DIR/TEann_35_0.1filt.sorted.bed"
-GTF="$BASEDIR/refann.gtf"
-OUTDIR="$BASEDIR/H3K9me3_summary_tables"
-TMPDIR="$OUTDIR/tmp"
-GENOME="danRer11"
-CHRLEN="$BASEDIR/genome/chrNameLength.txt"
+#BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+#PEAKS_DIR="$BASEDIR/peaks"
+#TE_BED="$PEAKS_DIR/TEann_35_0.1filt.sorted.bed"
+#GTF="$BASEDIR/refann.gtf"
+#OUTDIR="$BASEDIR/H3K9me3_summary_tables"
+#TMPDIR="$OUTDIR/tmp"
+#GENOME="danRer11"
+#CHRLEN="$BASEDIR/genome/chrNameLength.txt"
 
-[ -f "$GTF" ] || { echo "ERROR: GTF not found: $GTF"; exit 1; }
-[ -f "$CHRLEN" ] || { echo "ERROR: chrNameLength.txt not found: $CHRLEN"; exit 1; }
+#[ -f "$GTF" ] || { echo "ERROR: GTF not found: $GTF"; exit 1; }
+#[ -f "$CHRLEN" ] || { echo "ERROR: chrNameLength.txt not found: $CHRLEN"; exit 1; }
 
-mkdir -p "$OUTDIR" "$TMPDIR"
+#mkdir -p "$OUTDIR" "$TMPDIR"
 
-if [ ! -f "$TE_BED" ]; then
-    echo "Sorting TE BED file..."
-    bedtools sort -i "$PEAKS_DIR/TEann_35_0.1filt.bed" -g "$CHRLEN" > "$TE_BED"
-fi
+#if [ ! -f "$TE_BED" ]; then
+#    echo "Sorting TE BED file..."
+#    bedtools sort -i "$PEAKS_DIR/TEann_35_0.1filt.bed" -g "$CHRLEN" > "$TE_BED"
+#fi
 
-shopt -s nullglob
-peakfiles=("$PEAKS_DIR"/*final.bed)
+#shopt -s nullglob
+#peakfiles=("$PEAKS_DIR"/*final.bed)
 
-if [ ${#peakfiles[@]} -eq 0 ]; then
-    echo "ERROR: No peak files found."
-    exit 1
-fi
+#if [ ${#peakfiles[@]} -eq 0 ]; then
+#    echo "ERROR: No peak files found."
+#    exit 1
+#fi
 
-for peakfile in "${peakfiles[@]}"; do
-    base=$(basename "$peakfile" _final.bed)
-    echo "Processing $base..."
+#for peakfile in "${peakfiles[@]}"; do
+#    base=$(basename "$peakfile" _final.bed)
+#    echo "Processing $base..."
 
-    for window in 1000 5000; do
-        echo "  TSS window: ${window}bp"
+#    for window in 1000 5000; do
+#        echo "  TSS window: ${window}bp"
 
-        annfile="$TMPDIR/${base}_ann_${window}.txt"
-        filtered="$TMPDIR/${base}_filtered_${window}.bed"
-        covfile="$TMPDIR/${base}_cov_${window}.txt"
-        outtable="$OUTDIR/${base}_TSS${window}bp_TE_table.tsv"
+#        annfile="$TMPDIR/${base}_ann_${window}.txt"
+#        filtered="$TMPDIR/${base}_filtered_${window}.bed"
+#        covfile="$TMPDIR/${base}_cov_${window}.txt"
+#        outtable="$OUTDIR/${base}_TSS${window}bp_TE_table.tsv"
 
-        echo "    Annotating peaks with HOMER..."
-        annotatePeaks.pl "$peakfile" $GENOME -gtf "$GTF" > "$annfile"
-        if [ ! -s "$annfile" ]; then
-            echo "    ERROR: Annotation failed: $annfile"
-            continue
-        fi
+#        echo "    Annotating peaks with HOMER..."
+#        annotatePeaks.pl "$peakfile" $GENOME -gtf "$GTF" > "$annfile"
+#        if [ ! -s "$annfile" ]; then
+#            echo "    ERROR: Annotation failed: $annfile"
+#            continue
+#        fi
 
-        echo "    Filtering and formatting..."
-        awk -v W=$window 'BEGIN{OFS="\t"}
-        NR > 1 && sqrt($10*$10) <= W {
-            chr=$2; start=$3; end=$4; peakID=$1;
-            category="unannotated";
-            if ($8 ~ /exon/ && $8 !~ /intron/) category="exon_only";
-            else if ($8 ~ /intron/ && $8 !~ /exon/) category="intron_only";
-            else if ($8 ~ /exon/ && $8 ~ /intron/) category="both";
-            else if ($8 ~ /firstExon/) category="first_exon";
+#        echo "    Filtering and formatting..."
+#        awk -v W=$window 'BEGIN{OFS="\t"}
+#        NR > 1 && sqrt($10*$10) <= W {
+#            chr=$2; start=$3; end=$4; peakID=$1;
+#            category="unannotated";
+#            if ($8 ~ /exon/ && $8 !~ /intron/) category="exon_only";
+#            else if ($8 ~ /intron/ && $8 !~ /exon/) category="intron_only";
+#            else if ($8 ~ /exon/ && $8 ~ /intron/) category="both";
+#            else if ($8 ~ /firstExon/) category="first_exon";
 
-            print chr, start, end, peakID, category, $10, $11, $12
-        }' "$annfile" > "$filtered.unsorted"
+#            print chr, start, end, peakID, category, $10, $11, $12
+#        }' "$annfile" > "$filtered.unsorted"
 
-        bedtools sort -i "$filtered.unsorted" -g "$CHRLEN" > "$filtered"
-        rm "$filtered.unsorted"
+#        bedtools sort -i "$filtered.unsorted" -g "$CHRLEN" > "$filtered"
+#        rm "$filtered.unsorted"
 
-        echo "    Calculating TE overlap..."
-        bedtools coverage -a "$filtered" -b "$TE_BED" -sorted -f 0.0001 > "$covfile"
-        if [ ! -s "$covfile" ]; then
-            echo "    ERROR: TE coverage failed: $covfile"
-            continue
-        fi
+#        echo "    Calculating TE overlap..."
+#        bedtools coverage -a "$filtered" -b "$TE_BED" -sorted -f 0.0001 > "$covfile"
+#        if [ ! -s "$covfile" ]; then
+#            echo "    ERROR: TE coverage failed: $covfile"
+#            continue
+#        fi
 
-        echo "    Writing output table..."
-        awk -v time="$base" -v win="$window" '
-        BEGIN { OFS="\t"; print "gene_id","gene_name","peak_id","TSS_dist","category","TE_overlap_pct","TE_bin","timepoint" }
-        {
-            gene_id = $7;
-            gene_name = $8;
-            peak_id = $4;
-            tss_dist = $6;
-            category = $5;
-            overlap_pct = $NF;
-            bin = "100%";
+#        echo "    Writing output table..."
+#        awk -v time="$base" -v win="$window" '
+#        BEGIN { OFS="\t"; print "gene_id","gene_name","peak_id","TSS_dist","category","TE_overlap_pct","TE_bin","timepoint" }
+#        {
+#            gene_id = $7;
+#            gene_name = $8;
+#            peak_id = $4;
+#            tss_dist = $6;
+#            category = $5;
+#            overlap_pct = $NF;
+#            bin = "100%";
 
-            if (overlap_pct == 0) bin = "0%";
-            else if (overlap_pct <= 10) bin = "<=10%";
-            else if (overlap_pct <= 25) bin = "<=25%";
-            else if (overlap_pct <= 50) bin = "<=50%";
-            else if (overlap_pct <= 75) bin = "<=75%";
+#            if (overlap_pct == 0) bin = "0%";
+#            else if (overlap_pct <= 10) bin = "<=10%";
+#            else if (overlap_pct <= 25) bin = "<=25%";
+#            else if (overlap_pct <= 50) bin = "<=50%";
+#            else if (overlap_pct <= 75) bin = "<=75%";
 
-            print gene_id, gene_name, peak_id, tss_dist, category, overlap_pct, bin, time
-        }' "$covfile" > "$outtable"
+#            print gene_id, gene_name, peak_id, tss_dist, category, overlap_pct, bin, time
+#        }' "$covfile" > "$outtable"
 
-        echo "    Output written: $outtable"
-    done
+#        echo "    Output written: $outtable"
+#    done
+#done
+
+#echo "All timepoints processed."
+
+##5.27.25 Get gene names
+GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables"
+OUTPUT_DIR="$INPUT_DIR/with_symbols"
+LOOKUP="$OUTPUT_DIR/zebrafish_ensid_to_symbol.tsv"
+mkdir -p "$OUTPUT_DIR"
+
+# === STEP 1: Extract gene symbol mappings from GTF ===
+echo "Extracting gene_id and transcript_id to gene_name mappings from GTF..."
+
+awk -F'\t' '
+$3 == "gene" || $3 == "transcript" {
+    match($9, /gene_id "([^"]+)"/, gid);
+    match($9, /transcript_id "([^"]+)"/, tid);
+    match($9, /gene_name "([^"]+)"/, gname);
+    if (gid[1] && gname[1]) print gid[1] "\t" gname[1];
+    if (tid[1] && gname[1]) print tid[1] "\t" gname[1];
+}' "$GTF" | sort -u > "$LOOKUP"
+
+echo "Lookup table saved to: $LOOKUP"
+
+# === STEP 2: Annotate all TE_table files with gene symbols ===
+echo "Annotating TE tables with gene symbols..."
+
+for file in "$INPUT_DIR"/*_TE_table.tsv; do
+    [ -f "$file" ] || continue
+    base=$(basename "$file" .tsv)
+    output="$OUTPUT_DIR/${base}_with_symbols.tsv"
+
+    awk -F'\t' -v OFS='\t' -v mapfile="$LOOKUP" '
+    BEGIN {
+        while ((getline < mapfile) > 0) {
+            id_to_name[$1] = $2;
+        }
+    }
+    NR == 1 {
+        print $0, "gene_symbol";
+        next;
+    }
+    {
+        symbol = ($1 in id_to_name) ? id_to_name[$1] : "NA";
+        print $0, symbol;
+    }' "$file" > "$output"
+
+    echo "Annotated: $output"
 done
 
-echo "All timepoints processed."
+echo "All TE tables processed with gene symbols added."
