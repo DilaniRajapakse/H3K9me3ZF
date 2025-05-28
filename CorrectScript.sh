@@ -1092,100 +1092,84 @@ GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann1.gtf"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
 SYMBOL_TSV="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
 OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/final_summaries"
+TMP="${OUT_DIR}/tmp"
+
+mkdir -p "$TMP"
 mkdir -p "$OUT_DIR"
 
-# Temporary directory for intermediate files
-TMP="${OUT_DIR}/tmp"
-mkdir -p "$TMP"
-
-# Convert GTF to gene BED
-awk '$3 == "gene" {
-    match($0, /gene_id \"([^\"]+)/, arr);
-    print $1, $4-1, $5, arr[1], ".", $7
-}' OFS="\t" "$GTF" > "$TMP/ref_genes.bed"
-
-# Loop over timepoint BED files
+# Loop through BED files
 for bedfile in "$BED_DIR"/*_K9_final.bed; do
     base=$(basename "$bedfile" _K9_final.bed)
 
     for WIN in 1000 5000; do
         window_label="$( [ "$WIN" -eq 1000 ] && echo "1kb" || echo "5kb")"
-        echo "Processing $base with window $WIN..."
-
-        # Trim BED to 6 columns for HOMER
         trimmed_bed="$TMP/${base}_${window_label}_trimmed.bed"
-        cut -f1-6 "$bedfile" > "$trimmed_bed"
+        annot_file="$TMP/${base}_${window_label}_annot.txt"
 
-        # Annotate peaks using HOMER
-        homer_out="$TMP/${base}_${window_label}_annot.txt"
-        annotatePeaks.pl "$trimmed_bed" danRer11 -gtf "$GTF" -size $WIN > "$homer_out"
+        # Trim BED to standard 6-column format
+        awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6}' "$bedfile" > "$trimmed_bed"
 
-        # Extract gene assignments and relative positions
-        awk 'NR > 1 && $2 ~ /^ENSDART/ {
-            split($8, a, " "); 
-            cat=$8; 
-            exon_count=gsub(/exon/, "", cat);
-            intron_count=gsub(/intron/, "", cat);
-            print $2, (cat ~ /first_exon/ ? "TRUE" : "FALSE"), 
-                       (exon_count > 1 ? "TRUE" : "FALSE"), 
-                       (intron_count > 1 ? "TRUE" : "FALSE")
-        }' OFS="\t" "$homer_out" > "$TMP/${base}_${window_label}_gene_class.txt"
+        # Annotate peaks with HOMER
+        annotatePeaks.pl "$trimmed_bed" danRer11 -gtf "$GTF" -size $WIN > "$annot_file"
 
-        # Intersect peaks with genes to count overlap
-        bedtools intersect -a "$trimmed_bed" -b "$TE_BED" -wo | \
-            awk -v OFS="\t" '{print $1"_"$2"_"$3, $NF}' > "$TMP/${base}_${window_label}_TE_overlap.txt"
-
-        # Calculate percent TE overlap per peak
-        awk '{
-            key=$1; len=split(key, tmp, "_");
-            peaklen = tmp[3] - tmp[2];
-            overlap[key] += $2
-        } END {
-            for (k in overlap) print k, overlap[k]
-        }' "$TMP/${base}_${window_label}_TE_overlap.txt" > "$TMP/${base}_${window_label}_TE_percent.tsv"
-
-        # Convert peak names to gene IDs from HOMER output
-        awk 'NR > 1 && $2 ~ /^ENSDART/ {
-            split($0, a, "\t");
-            print a[2], a[1]"_"a[3]"_"a[4]
-        }' "$homer_out" > "$TMP/${base}_${window_label}_peak_to_gene.txt"
-
-        # Run Python post-processing
+        # Launch Python processing
         python3 - <<EOF
 import pandas as pd
+import csv
 
-genes = pd.read_csv("$TMP/${base}_${window_label}_gene_class.txt", sep="\t", header=None, names=["gene_id", "first_exon", "multiple_exons", "multiple_introns"])
-peaks = pd.read_csv("$TMP/${base}_${window_label}_peak_to_gene.txt", sep="\t", header=None, names=["gene_id", "peak_id"])
-te = pd.read_csv("$TMP/${base}_${window_label}_TE_percent.tsv", sep="\t", header=None, names=["peak_id", "te_overlap_bp"])
-symbols = pd.read_csv("$SYMBOL_TSV", sep="\t", header=None, names=["gene_id", "gene_symbol"])
+# Load HOMER annotation
+annot = pd.read_csv("$annot_file", sep="\t", comment="#")
 
-# Merge
-merged = pd.merge(peaks, te, on="peak_id", how="left")
-merged = pd.merge(merged, genes, on="gene_id", how="left")
-merged = pd.merge(merged, symbols, on="gene_id", how="left")
+# Extract gene_id and gene_symbol
+annot = annot.rename(columns={"Gene Name": "gene_symbol", "Nearest Ensembl": "gene_id"})
+annot = annot.dropna(subset=["gene_id"])
 
-# TE percent relative to peak size (1000 bp)
-merged["te_pct"] = merged["te_overlap_bp"] / 1000 * 100
+# Classification
+annot["multiple_exons"] = annot["Annotation"].str.contains("exon") & ~annot["Annotation"].str.contains("exon 1")
+annot["first_exon"] = annot["Annotation"].str.contains("exon 1")
+annot["multiple_introns"] = annot["Annotation"].str.contains("intron")
 
-def bin_te(pct):
-    if pd.isna(pct): return "0%"
-    elif pct <= 10: return "<=10%"
-    elif pct <= 25: return "<=25%"
-    elif pct <= 50: return "<=50%"
-    elif pct <= 75: return "<=75%"
-    elif pct < 100: return "<100%"
-    else: return "100%"
+# Compute TE overlap per gene
+import pybedtools
+peaks_bed = pybedtools.BedTool("$trimmed_bed")
+te_bed = pybedtools.BedTool("$TE_BED")
 
-merged["TE_bin"] = merged["te_pct"].apply(bin_te)
-merged["timepoint"] = "$base"
-merged["window"] = "$window_label"
+# Calculate total peak length per gene
+peak_lengths = {}
+for interval in peaks_bed:
+    gene_id = interval.name
+    length = int(interval.end) - int(interval.start)
+    peak_lengths[gene_id] = peak_lengths.get(gene_id, 0) + length
 
-# Output
-cols = ["gene_symbol", "gene_id", "multiple_exons", "multiple_introns", "first_exon", "TE_bin", "timepoint", "window"]
-merged[cols].drop_duplicates().to_csv("$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv", sep="\t", index=False)
+# Calculate TE overlap per gene
+te_overlap = {}
+for interval in peaks_bed.intersect(te_bed, wo=True):
+    gene_id = interval.name
+    overlap = int(interval.fields[-1])
+    te_overlap[gene_id] = te_overlap.get(gene_id, 0) + overlap
+
+# Merge overlap into dataframe
+annot["peak_id"] = annot["PeakID"]
+annot["TE_bp"] = annot["peak_id"].map(te_overlap).fillna(0)
+annot["Peak_bp"] = annot["peak_id"].map(peak_lengths).fillna(1)  # avoid div by zero
+annot["TE_pct"] = (annot["TE_bp"] / annot["Peak_bp"]) * 100
+
+# Bin
+bins = [0, 10, 25, 50, 75, 100]
+labels = ["0%", "<=10%", "<=25%", "<=50%", "<=75%", "100%"]
+annot["TE_bin"] = pd.cut(annot["TE_pct"], bins=[-0.01] + bins, labels=labels, include_lowest=True)
+
+# Add timepoint and window
+annot["timepoint"] = "$base"
+annot["window"] = "$window_label"
+
+# Select columns
+output = annot[["gene_symbol", "gene_id", "multiple_exons", "multiple_introns", "first_exon", "TE_bin", "timepoint", "window"]].drop_duplicates()
+
+# Save
+output.to_csv("$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv", sep="\t", index=False, quoting=csv.QUOTE_NONE)
 EOF
-
     done
 done
 
-echo "All done. Outputs in: $OUT_DIR"
+echo "All done. Results saved in: $OUT_DIR"
