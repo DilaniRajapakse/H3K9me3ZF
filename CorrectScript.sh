@@ -23,7 +23,7 @@
 #    mkdir -p $HOMEDIR
 #fi
 
-#BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #ml STAR (SAMtools/1.18-GCC-12.3.0 )
 #for file in $OUTDIR/*_R*.fastq.gz;
