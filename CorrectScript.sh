@@ -1112,45 +1112,48 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
 
     # Extract and clean data
     awk -v tp="$TIMEPOINT" -v win="$WINDOW" '
-    BEGIN { FS=OFS="\t"; }
-    NR == 1 {
-        for (i = 1; i <= NF; i++) {
-            name = tolower($i);
-            if (name == "gene_symbol" || name == "gene_name") gs_col = i;
-            else if (name == "gene_id") gid_col = i;
-            else if (name == "category") cat_col = i;
-            else if (name == "te_bin") te_col = i;
-        }
-        next;
+BEGIN { FS=OFS="\t"; }
+NR == 1 {
+    for (i = 1; i <= NF; i++) {
+        name = tolower($i);
+        if (name == "gene_symbol" || name == "gene_name") gs_col = i;
+        else if (name == "gene_id") gid_col = i;
+        else if (name == "category") cat_col = i;
+        else if (name == "te_bin") te_col = i;
     }
-    {
-        gs = $gs_col;
-        gid = $gid_col;
-        gsub(/[()]/, "", gid);
-        cat = $cat_col;
-        te = $te_col;
+    next;
+}
+{
+    gs = $gs_col;
+    gid = $gid_col;
+    gsub(/[()]/, "", gid);  # remove any parentheses from gene_id
+    cat = $cat_col;
+    te = $te_col;
 
-        if (gs == "" || gid !~ /^ENSDART[0-9]+$/) next;
+    # Trim whitespace
+    gsub(/^[ \t]+|[ \t]+$/, "", te);
 
-        exons = gsub(/exon/, "exon", cat);
-        introns = gsub(/intron/, "intron", cat);
-        first_exon = (cat ~ /first_exon/) ? "TRUE" : "FALSE";
+    if (gs == "" || gid !~ /^ENSDART[0-9]+$/) next;
 
-        multiple_exons = (exons > 1) ? "TRUE" : "FALSE";
-        multiple_introns = (introns > 1) ? "TRUE" : "FALSE";
+    exons = gsub(/exon/, "exon", cat);
+    introns = gsub(/intron/, "intron", cat);
+    first_exon = (cat ~ /first_exon/) ? "TRUE" : "FALSE";
 
-        bin_0 = bin_10 = bin_25 = bin_50 = bin_75 = bin_100 = "FALSE";
-        if (te == "0%")         bin_0 = "TRUE";
-        else if (te == "<=10%") bin_10 = "TRUE";
-        else if (te == "<=25%") bin_25 = "TRUE";
-        else if (te == "<=50%") bin_50 = "TRUE";
-        else if (te == "<=75%") bin_75 = "TRUE";
-        else if (te == "100%")  bin_100 = "TRUE";
+    multiple_exons = (exons > 1) ? "TRUE" : "FALSE";
+    multiple_introns = (introns > 1) ? "TRUE" : "FALSE";
 
-        print gs, gid, multiple_exons, multiple_introns, first_exon,
-              bin_0, bin_10, bin_25, bin_50, bin_75, bin_100, tp, win;
-    }
-    ' "$FILE" >> "$OUTFILE"
+    bin_0 = bin_10 = bin_25 = bin_50 = bin_75 = bin_100 = "FALSE";
+    if (te == "0%")                     bin_0 = "TRUE";
+    else if (te ~ /^<=?\s*10%$/)       bin_10 = "TRUE";
+    else if (te ~ /^<=?\s*25%$/)       bin_25 = "TRUE";
+    else if (te ~ /^<=?\s*50%$/)       bin_50 = "TRUE";
+    else if (te ~ /^<=?\s*75%$/)       bin_75 = "TRUE";
+    else if (te == "100%")             bin_100 = "TRUE";
+
+    print gs, gid, multiple_exons, multiple_introns, first_exon,
+          bin_0, bin_10, bin_25, bin_50, bin_75, bin_100, tp, win;
+}
+' "$FILE" >> "$OUTFILE"
 
     tail -n +2 "$OUTFILE" >> "$COMBINED_FILE"
 done
