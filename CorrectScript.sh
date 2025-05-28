@@ -1084,30 +1084,35 @@ module load Homer
 
 ##5.28.25 Trying to get bins of genes in excel files
 INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_summaries"
+
+# Create a new, timestamped output directory
+DATE_TAG=$(date +%F)
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_summaries_${DATE_TAG}"
 mkdir -p "$OUT_DIR"
 
+# Combined output path
 COMBINED_FILE="${OUT_DIR}/combined_gene_summary_by_window.tsv"
 
+# Safe header line with renamed TE bin columns
 HEADER="gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0pct\tTE_bin_le10pct\tTE_bin_le25pct\tTE_bin_le50pct\tTE_bin_le75pct\tTE_bin_100pct\ttimepoint\twindow"
-echo -e "$HEADER" > "$COMBINED_FILE"
+printf "%s\n" "$HEADER" > "$COMBINED_FILE"
 
+# Process each file
 for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
     [ -e "$FILE" ] || continue
     BASENAME=$(basename "$FILE" .tsv)
     OUTFILE="${OUT_DIR}/${BASENAME}_summary.tsv"
 
+    # Extract metadata
     TIMEPOINT=$(echo "$BASENAME" | cut -d'_' -f1)
-    WINDOW="5kb"
-    [[ "$BASENAME" == *1000bp* ]] && WINDOW="1kb"
+    [[ "$BASENAME" == *1000bp* ]] && WINDOW="1kb" || WINDOW="5kb"
 
-    echo -e "$HEADER" > "$OUTFILE"
+    # Write header to individual file
+    printf "%s\n" "$HEADER" > "$OUTFILE"
 
+    # Extract and clean data
     awk -v tp="$TIMEPOINT" -v win="$WINDOW" '
-    BEGIN {
-        FS=OFS="\t";
-    }
-
+    BEGIN { FS=OFS="\t"; }
     NR == 1 {
         for (i = 1; i <= NF; i++) {
             name = tolower($i);
@@ -1118,7 +1123,6 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
         }
         next;
     }
-
     {
         gs = $gs_col;
         gid = $gid_col;
@@ -1126,7 +1130,7 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
         cat = $cat_col;
         te = $te_col;
 
-        if (gid ~ /[^A-Za-z0-9._]/ || length(gid) < 6) next;
+        if (gs == "" || gid !~ /^ENSDART[0-9]+$/) next;
 
         exons = gsub(/exon/, "exon", cat);
         introns = gsub(/intron/, "intron", cat);
@@ -1151,4 +1155,4 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
     tail -n +2 "$OUTFILE" >> "$COMBINED_FILE"
 done
 
-echo "Done. Summaries saved to: $OUT_DIR"
+echo "Done. All summaries saved to: $OUT_DIR"
