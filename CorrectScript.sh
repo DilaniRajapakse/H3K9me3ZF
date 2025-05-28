@@ -1088,7 +1088,9 @@ OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_summarie
 mkdir -p "$OUT_DIR"
 
 COMBINED_FILE="${OUT_DIR}/combined_gene_summary_by_window.tsv"
-echo -e "gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0pct\tTE_bin_le10pct\tTE_bin_le25pct\tTE_bin_le50pct\tTE_bin_le75pct\tTE_bin_100pct\ttimepoint\twindow" > "$COMBINED_FILE"
+
+HEADER="gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0pct\tTE_bin_le10pct\tTE_bin_le25pct\tTE_bin_le50pct\tTE_bin_le75pct\tTE_bin_100pct\ttimepoint\twindow"
+echo -e "$HEADER" > "$COMBINED_FILE"
 
 for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
     [ -e "$FILE" ] || continue
@@ -1098,6 +1100,8 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
     TIMEPOINT=$(echo "$BASENAME" | cut -d'_' -f1)
     WINDOW="5kb"
     [[ "$BASENAME" == *1000bp* ]] && WINDOW="1kb"
+
+    echo -e "$HEADER" > "$OUTFILE"
 
     awk -v tp="$TIMEPOINT" -v win="$WINDOW" '
     BEGIN {
@@ -1142,9 +1146,9 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
         print gs, gid, multiple_exons, multiple_introns, first_exon,
               bin_0, bin_10, bin_25, bin_50, bin_75, bin_100, tp, win;
     }
-    ' "$FILE" > "$OUTFILE"
+    ' "$FILE" >> "$OUTFILE"
 
     tail -n +2 "$OUTFILE" >> "$COMBINED_FILE"
 done
 
-echo "Done. Output saved in: $OUT_DIR"
+echo "Done. Summaries saved to: $OUT_DIR"
