@@ -1083,124 +1083,109 @@
 #echo "Finished summarizing 1kb and 5kb gene peak tables."
 
 ##5.28.25 Trying to get bins of genes in excel files
-# === LOAD MODULES ===
-module load BEDTools
-module load HOMER
+module load Homer
+module load bedtools
+module load pandas/1.0.5-foss-2022a-Python-3.10.4
 
-# === INPUT FILES ===
-GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-SYMBOL_FILE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
-PEAK_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/by_timepoint"
-
-# === OUTPUT BASE DIRECTORY ===
-OUTDIR_BASE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_TE_summary_2025-05-28"
+# === Paths ===
+GTF=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf
+PEAK_DIR=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks
+TE_BED=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed
+SYMBOL_FILE=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv
+OUTDIR_BASE=/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_TE_summary_$(date +%F)
 mkdir -p "$OUTDIR_BASE"
 
-# === STEP 1: Extract TSS and Generate TSS Windows ===
-echo "Extracting TSS and generating windows..."
-awk -F'\t' '$3 == "gene" {
-    match($9, /gene_id "([^"]+)"/, gid);
-    chr=$1; start=$4-1; end=$5; strand=$7;
-    if (strand == "+") tss=start; else tss=end;
-    print chr, tss, tss+1, gid[1], ".", strand
-}' "$GTF" > "$OUTDIR_BASE/tss.bed"
+# === Extract TSS BED from GTF ===
+grep -P "\ttranscript\t" "$GTF" | awk 'BEGIN{OFS="\t"} {
+  if ($7 == "+") {start=$4; end=$4+1} else {start=$5-1; end=$5}
+  print $1, start, end, $10, ".", $7
+}' | sed 's/[";]//g' > "$OUTDIR_BASE/tss.bed"
 
-awk 'BEGIN{OFS="\t"} {
-    if ($6 == "+") {
-        print $1, ($2 - 1000 < 0 ? 0 : $2 - 1000), $2 + 1000, $4, ".", $6, "1kb"
-        print $1, ($2 - 5000 < 0 ? 0 : $2 - 5000), $2 + 5000, $4, ".", $6, "5kb"
-    } else {
-        print $1, ($3 - 1000 < 0 ? 0 : $3 - 1000), $3 + 1000, $4, ".", $6, "1kb"
-        print $1, ($3 - 5000 < 0 ? 0 : $3 - 5000), $3 + 5000, $4, ".", $6, "5kb"
-    }
-}' "$OUTDIR_BASE/tss.bed" > "$OUTDIR_BASE/tss_windows.bed"
+# === Loop through timepoints and windows ===
+for WINDOW_SIZE in 1000 5000; do
+  WIN_LABEL=$( [ "$WINDOW_SIZE" -eq 1000 ] && echo "1kb" || echo "5kb" )
+  bedtools slop -i "$OUTDIR_BASE/tss.bed" -g /scratch/dr27977/genome/chrNameLength.txt -b $WINDOW_SIZE > "$OUTDIR_BASE/tss_${WIN_LABEL}.bed"
 
-# === STEP 2: Process Each Timepoint ===
-for PEAKS in "$PEAK_DIR"/*.bed; do
-    TIMEPOINT=$(basename "$PEAKS" .bed)
-    echo "Processing $TIMEPOINT..."
+  for PEAK_FILE in "$PEAK_DIR"/*_K9_final.bed; do
+    TIMEPOINT=$(basename "$PEAK_FILE" | cut -d'_' -f1)
+    OUTDIR="$OUTDIR_BASE/${TIMEPOINT}/${WIN_LABEL}"
+    mkdir -p "$OUTDIR"
 
-    for WINDOW in 1kb 5kb; do
-        echo "  Window: $WINDOW"
-        OUTDIR="$OUTDIR_BASE/$TIMEPOINT/$WINDOW"
-        mkdir -p "$OUTDIR"
+    echo "Annotating peaks for $TIMEPOINT - $WIN_LABEL"
+    annotatePeaks.pl "$PEAK_FILE" danRer11 -gtf "$GTF" > "$OUTDIR/peak_annotations.txt"
+    cut -f2 "$OUTDIR/peak_annotations.txt" | tail -n +2 | sort | uniq > "$OUTDIR/genes_with_peaks.txt"
+    grep -Ff "$OUTDIR/genes_with_peaks.txt" "$OUTDIR/peak_annotations.txt" | cut -f2,8 | sort | uniq > "$OUTDIR/genes_with_peaks_feature_types.tsv"
 
-        awk -v win="$WINDOW" '$7 == win' "$OUTDIR_BASE/tss_windows.bed" > "$OUTDIR/tss_${WINDOW}.bed"
-        bedtools intersect -a "$OUTDIR/tss_${WINDOW}.bed" -b "$PEAKS" -u > "$OUTDIR/genes_with_peaks.bed"
+    # TE overlap
+    bedtools intersect -a "$OUTDIR_BASE/tss_${WIN_LABEL}.bed" -b "$PEAK_FILE" -wa -u > "$OUTDIR/tss_with_peaks.bed"
+    bedtools intersect -a "$OUTDIR/tss_with_peaks.bed" -b "$TE_BED" -wo > "$OUTDIR/TE_overlap_raw.txt"
+    bedtools groupby -i "$OUTDIR/tss_with_peaks.bed" -g 4 -c 3,2 -o max,min | awk '{print $1, $2 - $3}' OFS="\t" > "$OUTDIR/gene_lengths.tsv"
 
-        annotatePeaks.pl "$OUTDIR/genes_with_peaks.bed" danRer11 -gtf "$GTF" > "$OUTDIR/genes_with_peaks.ann.txt"
-        awk -F'\t' 'NR>1 {print $2, $8}' OFS="\t" "$OUTDIR/genes_with_peaks.ann.txt" > "$OUTDIR/genes_with_peaks_feature_types.tsv"
-
-        bedtools intersect -a "$OUTDIR/genes_with_peaks.bed" -b "$TE_BED" -wo > "$OUTDIR/TE_overlap_raw.txt"
-        awk 'BEGIN{OFS="\t"} {print $4, $3-$2}' "$OUTDIR/genes_with_peaks.bed" | sort -u > "$OUTDIR/gene_lengths.tsv"
-
-        python3 - <<EOF
+    # Python analysis
+    python3 - <<EOF
 import pandas as pd
 
-df = pd.read_csv("$OUTDIR/TE_overlap_raw.txt", sep="\t", header=None)
-df.columns = ["chr", "start", "end", "gene_id", ".", "strand", "window", "TE_chr", "TE_start", "TE_end", "TE_info", "overlap_bp"]
-te = df.groupby(["gene_id"])["overlap_bp"].sum().reset_index()
+# Load data
+overlap = pd.read_csv("$OUTDIR/TE_overlap_raw.txt", sep="\t", header=None)
+overlap.columns = ['chr', 'start', 'end', 'gene_id', 'tss_chr', 'tss_start', 'tss_end', 'tss_id', 'tss_dot', 'strand', 'win', 'te_chr', 'te_start', 'te_end', 'score', 'strand2', 'overlap_bp']
+overlap_sum = overlap.groupby('gene_id')['overlap_bp'].sum().reset_index()
 
-lengths = pd.read_csv("$OUTDIR/gene_lengths.tsv", sep="\t", header=None, names=["gene_id", "length"])
-merged = pd.merge(te, lengths, on="gene_id")
-merged["percent_TE"] = (merged["overlap_bp"] / merged["length"]) * 100
+lengths = pd.read_csv("$OUTDIR/gene_lengths.tsv", sep="\t", names=['gene_id', 'length'])
+annots = pd.read_csv("$OUTDIR/genes_with_peaks_feature_types.tsv", sep="\t", names=['gene_id', 'feature'])
 
-def bin_pct(p):
-    if p == 0: return "0%"
-    elif p <= 10: return "<=10%"
-    elif p <= 25: return "<=25%"
-    elif p <= 50: return "<=50%"
-    elif p <= 75: return "<=75%"
-    else: return "100%"
+annots['first_exon'] = annots['feature'].str.contains('firstExon')
+annots['exon'] = annots['feature'].str.contains('exon')
+annots['intron'] = annots['feature'].str.contains('intron')
 
-merged["TE_bin"] = merged["percent_TE"].fillna(0).apply(bin_pct)
+annots['peak_category'] = annots.apply(lambda row:
+    'first_exon' if row['first_exon'] else
+    'both' if row['exon'] and row['intron'] else
+    'exon' if row['exon'] else
+    'intron' if row['intron'] else 'none', axis=1)
 
-features = pd.read_csv("$OUTDIR/genes_with_peaks_feature_types.tsv", sep="\t", names=["gene_id", "annotation"])
-merged["annotation"] = merged["gene_id"].map(dict(zip(features["gene_id"], features["annotation"]))).fillna("none")
+symbols = pd.read_csv("$SYMBOL_FILE", sep="\t", names=['gene_id', 'symbol'])
 
-def classify(annot):
-    if "firstExon" in annot: return "first_exon"
-    elif "exon" in annot and "intron" in annot: return "both"
-    elif "exon" in annot: return "exon"
-    elif "intron" in annot: return "intron"
-    else: return "none"
+# Merge
+df = lengths.merge(overlap_sum, on='gene_id', how='left')
+df['overlap_bp'] = df['overlap_bp'].fillna(0)
+df['percent_TE'] = (df['overlap_bp'] / df['length']) * 100
 
-merged["peak_category"] = merged["annotation"].apply(classify)
+df['TE_bin'] = df['percent_TE'].apply(lambda p:
+    '0%' if p == 0 else
+    '<=10%' if p <= 10 else
+    '<=25%' if p <= 25 else
+    '<=50%' if p <= 50 else
+    '<=75%' if p <= 75 else '100%')
 
-symbols = pd.read_csv("$SYMBOL_FILE", sep="\t", names=["gene_id", "symbol"])
-final = pd.merge(merged, symbols, on="gene_id", how="left")
-final["timepoint"] = "$TIMEPOINT"
-final["window"] = "$WINDOW"
+df = df.merge(annots[['gene_id', 'peak_category']], on='gene_id', how='left')
+df = df.merge(symbols, on='gene_id', how='left')
+df['symbol'] = df['symbol'].fillna('NA')
+df['window'] = "$WIN_LABEL"
+df['timepoint'] = "$TIMEPOINT"
 
-final[["symbol", "gene_id", "window", "timepoint", "length", "percent_TE", "TE_bin", "peak_category"]].to_csv("$OUTDIR/gene_TE_peak_summary.tsv", sep="\t", index=False)
+cols = ['symbol', 'gene_id', 'window', 'timepoint', 'length', 'percent_TE', 'TE_bin', 'peak_category']
+df[cols].to_csv("$OUTDIR/gene_TE_peak_summary.tsv", sep="\t", index=False)
 EOF
 
-    done
+  done
 done
 
-# === STEP 3: Merge All Timepoints into One File ===
-echo "Merging all results..."
-
+# Final merge
+echo "Merging all summaries..."
 python3 - <<EOF
-import os
-import glob
 import pandas as pd
+import glob
+import os
 
 base_dir = "$OUTDIR_BASE"
-out_file = os.path.join(base_dir, "merged_gene_TE_summary.tsv")
-
-files = glob.glob(f"{base_dir}/*/*/gene_TE_peak_summary.tsv")
+summaries = glob.glob(f"{base_dir}/*/*/gene_TE_peak_summary.tsv")
 all_dfs = []
-
-for f in files:
-    df = pd.read_csv(f, sep="\\t")
+for f in summaries:
+    df = pd.read_csv(f, sep="\t")
     all_dfs.append(df)
-
 merged = pd.concat(all_dfs, ignore_index=True)
 merged = merged.sort_values(by=["symbol", "gene_id", "timepoint", "window"])
-merged.to_csv(out_file, sep="\\t", index=False)
-print(f"Merged summary saved to: {out_file}")
+merged.to_csv(f"{base_dir}/merged_gene_TE_summary.tsv", sep="\t", index=False)
 EOF
 
-echo "Pipeline complete."
+echo "Pipeline complete. Output in: $OUTDIR_BASE"
