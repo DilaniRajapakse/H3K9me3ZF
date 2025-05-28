@@ -1091,7 +1091,7 @@ BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
 GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann1.gtf"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
 SYMBOL_TSV="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/final_summaries"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/final_summaries1"
 TMP="${OUT_DIR}/tmp"
 
 mkdir -p "$TMP"
