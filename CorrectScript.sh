@@ -986,98 +986,165 @@ module load Homer
 #done
 
 #echo "All TE tables processed with gene symbols added."
-BASE_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
-OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables"
-OUTPUT_1KB="${OUTPUT_DIR}/gene_peak_summaries_1kb.txt"
-OUTPUT_5KB="${OUTPUT_DIR}/gene_peak_summaries_5kb.txt"
+#BASE_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
+#OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables"
+#OUTPUT_1KB="${OUTPUT_DIR}/gene_peak_summaries_1kb.txt"
+#OUTPUT_5KB="${OUTPUT_DIR}/gene_peak_summaries_5kb.txt"
 
-rm -f "$OUTPUT_1KB" "$OUTPUT_5KB"
+#rm -f "$OUTPUT_1KB" "$OUTPUT_5KB"
 
-for file in "${BASE_DIR}"/*_TSS1000bp_TE_table_with_symbols.tsv "${BASE_DIR}"/*_TSS5000bp_TE_table_with_symbols.tsv; do
-    [ -f "$file" ] || continue
+#for file in "${BASE_DIR}"/*_TSS1000bp_TE_table_with_symbols.tsv "${BASE_DIR}"/*_TSS5000bp_TE_table_with_symbols.tsv; do
+#    [ -f "$file" ] || continue
 
-    filename=$(basename "$file")
-    if [[ "$filename" == *_TSS1000bp_* ]]; then
-        OUTPUT="$OUTPUT_1KB"
-    elif [[ "$filename" == *_TSS5000bp_* ]]; then
-        OUTPUT="$OUTPUT_5KB"
+#    filename=$(basename "$file")
+#    if [[ "$filename" == *_TSS1000bp_* ]]; then
+#        OUTPUT="$OUTPUT_1KB"
+#    elif [[ "$filename" == *_TSS5000bp_* ]]; then
+#        OUTPUT="$OUTPUT_5KB"
+#    else
+#        continue
+#    fi
+
+#    awk -F'\t' -v OFS='\t' -v out="$OUTPUT" '
+#    BEGIN {
+#        categories["intron_only"]
+#        categories["exon_only"]
+#        categories["both"]
+#        categories["first_exon"]
+#        categories["unannotated"]
+#    }
+
+#    NR == 1 {
+#        for (i = 1; i <= NF; i++) header[$i] = i
+#        next
+#    }
+
+#    {
+#        raw_gid = $header["gene_id"]
+#        gsym = $header["gene_symbol"]
+#        tp = $header["timepoint"]
+#        cat = $header["category"]
+#        tss = $header["TSS_dist"]
+#        te = $header["TE_overlap_pct"]
+
+#        gsub(/[()]/, "", raw_gid)
+#        split(raw_gid, a, " ")
+#        gid = a[1]
+
+#        if (gid == "" || tp == "" || cat == "") next
+
+#        key = gid "|" gsym "|" tp
+
+#        count[key]++
+#        cat_count[key, cat]++
+#        if (te != "" && te ~ /^[0-9.]+$/) {
+#            te_min[key] = (key in te_min) ? (te < te_min[key] ? te : te_min[key]) : te
+#            te_max[key] = (key in te_max) ? (te > te_max[key] ? te : te_max[key]) : te
+#        }
+
+#        if (tss ~ /^-?[0-9.]+$/ && tss + 0 >= -1000 && tss + 0 <= 1000) {
+#            tss_peak[key]++
+#            tss_pos[key] = (tss_pos[key] ? tss_pos[key] ", " : "") tss
+#        }
+#    }
+
+#    END {
+#        for (k in count) {
+#            split(k, a, "|")
+#            gid = a[1]; gsym = a[2]; tp = a[3]
+
+#            print "Transcript ID: " gid >> out
+#            print "Gene Symbol: " (gsym == "" ? "NA" : gsym) >> out
+#            print "Timepoint: " tp >> out
+
+#            if (tss_peak[k] > 0) {
+#                print "TSS peak: Yes (" tss_peak[k] " peak[s] at: " tss_pos[k] ")" >> out
+#            } else {
+#                print "TSS peak: No" >> out
+#            }
+
+#            print "H3K9me3 peaks:" >> out
+#            for (c in categories) {
+#                val = (cat_count[k, c] ? cat_count[k, c] : 0)
+#                print "  " val " " c " peaks" >> out
+#            }
+
+#            if (k in te_min && k in te_max) {
+#                printf("TE overlap range: %.2f - %.2f\n", te_min[k], te_max[k]) >> out
+#            } else {
+#                print "TE overlap range: NA" >> out
+#            }
+
+#            print "------------------------------------------------------------" >> out
+#        }
+#    }' "$file"
+#done
+
+#echo "Finished summarizing 1kb and 5kb gene peak tables."
+
+##5.28.25 Trying to get bins of genes in excel files
+INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_summaries"
+mkdir -p "$OUT_DIR"
+
+# Define path for combined output
+COMBINED_FILE="${OUT_DIR}/combined_gene_summary_by_window.tsv"
+echo -e "gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0%\tTE_bin_<=10%\tTE_bin_<=25%\tTE_bin_<=50%\tTE_bin_<=75%\tTE_bin_100%\ttimepoint\twindow" > "$COMBINED_FILE"
+
+# Loop through input TSVs
+for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
+    [ -e "$FILE" ] || continue
+    BASENAME=$(basename "$FILE" .tsv)
+    OUTFILE="${OUT_DIR}/${BASENAME}_summary.tsv"
+
+    # Extract timepoint and window size
+    TIMEPOINT=$(echo "$BASENAME" | cut -d'_' -f1)
+    if [[ "$BASENAME" == *1000bp* ]]; then
+        WINDOW="1kb"
     else
-        continue
+        WINDOW="5kb"
     fi
 
-    awk -F'\t' -v OFS='\t' -v out="$OUTPUT" '
+    awk -v tp="$TIMEPOINT" -v win="$WINDOW" '
     BEGIN {
-        categories["intron_only"]
-        categories["exon_only"]
-        categories["both"]
-        categories["first_exon"]
-        categories["unannotated"]
+        FS=OFS="\t";
     }
 
     NR == 1 {
-        for (i = 1; i <= NF; i++) header[$i] = i
-        next
+        for (i = 1; i <= NF; i++) {
+            col[$i] = i;
+        }
+        next;
     }
 
     {
-        raw_gid = $header["gene_id"]
-        gsym = $header["gene_symbol"]
-        tp = $header["timepoint"]
-        cat = $header["category"]
-        tss = $header["TSS_dist"]
-        te = $header["TE_overlap_pct"]
+        gene_symbol = $col["gene_symbol"];
+        gene_id     = $col["gene_id"];
+        category    = $col["category"];
+        te_bin      = $col["TE_bin"];
 
-        gsub(/[()]/, "", raw_gid)
-        split(raw_gid, a, " ")
-        gid = a[1]
+        # Count exon/intron mentions in the category
+        exons = gsub(/exon/, "exon", category);
+        introns = gsub(/intron/, "intron", category);
+        first_exon = (category ~ /first_exon/) ? "TRUE" : "FALSE";
 
-        if (gid == "" || tp == "" || cat == "") next
+        multiple_exons = (exons > 1) ? "TRUE" : "FALSE";
+        multiple_introns = (introns > 1) ? "TRUE" : "FALSE";
 
-        key = gid "|" gsym "|" tp
+        # Set only the correct TE bin flag to TRUE
+        bin_0 = bin_10 = bin_25 = bin_50 = bin_75 = bin_100 = "FALSE";
+        if (te_bin == "0%")         bin_0 = "TRUE";
+        else if (te_bin == "<=10%") bin_10 = "TRUE";
+        else if (te_bin == "<=25%") bin_25 = "TRUE";
+        else if (te_bin == "<=50%") bin_50 = "TRUE";
+        else if (te_bin == "<=75%") bin_75 = "TRUE";
+        else if (te_bin == "100%")  bin_100 = "TRUE";
 
-        count[key]++
-        cat_count[key, cat]++
-        if (te != "" && te ~ /^[0-9.]+$/) {
-            te_min[key] = (key in te_min) ? (te < te_min[key] ? te : te_min[key]) : te
-            te_max[key] = (key in te_max) ? (te > te_max[key] ? te : te_max[key]) : te
-        }
-
-        if (tss ~ /^-?[0-9.]+$/ && tss + 0 >= -1000 && tss + 0 <= 1000) {
-            tss_peak[key]++
-            tss_pos[key] = (tss_pos[key] ? tss_pos[key] ", " : "") tss
-        }
+        print gene_symbol, gene_id, multiple_exons, multiple_introns, first_exon, bin_0, bin_10, bin_25, bin_50, bin_75, bin_100, tp, win;
     }
+    ' "$FILE" > "$OUTFILE"
 
-    END {
-        for (k in count) {
-            split(k, a, "|")
-            gid = a[1]; gsym = a[2]; tp = a[3]
-
-            print "Transcript ID: " gid >> out
-            print "Gene Symbol: " (gsym == "" ? "NA" : gsym) >> out
-            print "Timepoint: " tp >> out
-
-            if (tss_peak[k] > 0) {
-                print "TSS peak: Yes (" tss_peak[k] " peak[s] at: " tss_pos[k] ")" >> out
-            } else {
-                print "TSS peak: No" >> out
-            }
-
-            print "H3K9me3 peaks:" >> out
-            for (c in categories) {
-                val = (cat_count[k, c] ? cat_count[k, c] : 0)
-                print "  " val " " c " peaks" >> out
-            }
-
-            if (k in te_min && k in te_max) {
-                printf("TE overlap range: %.2f - %.2f\n", te_min[k], te_max[k]) >> out
-            } else {
-                print "TE overlap range: NA" >> out
-            }
-
-            print "------------------------------------------------------------" >> out
-        }
-    }' "$file"
+    tail -n +2 "$OUTFILE" >> "$COMBINED_FILE"
 done
 
-echo "Finished summarizing 1kb and 5kb gene peak tables."
+echo "Done. All summaries written to: $OUT_DIR"
