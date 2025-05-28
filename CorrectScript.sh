@@ -23,7 +23,7 @@
 #    mkdir -p $HOMEDIR
 #fi
 
-BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+#BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #ml STAR (SAMtools/1.18-GCC-12.3.0 )
 #for file in $OUTDIR/*_R*.fastq.gz;
@@ -1083,71 +1083,109 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #echo "Finished summarizing 1kb and 5kb gene peak tables."
 
 ##5.28.25 Trying to get bins of genes in excel files
-#module load BEDTools/2.31.0-GCC-12.3.0
-#module load Homer/5.1-foss-2023a-R-4.3.2
-#module load pandas/1.0.5-foss-2022a-Python-3.10.4
+module load BEDTools/2.31.0-GCC-12.3.0
+module load Homer/5.1-foss-2023a-R-4.3.2
+module load pandas/1.0.5-foss-2022a-Python-3.10.4
 
-#BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
-#GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-#TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-#SYMBOL_TSV="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
-#OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/final_summaries"
-#mkdir -p "$OUT_DIR/tmp"
+BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
+GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann1.gtf"
+TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+SYMBOL_TSV="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/final_summaries"
+mkdir -p "$OUT_DIR"
 
-# Convert GTF to gene BED for TE overlap calc
-#awk '$3=="gene" {
-#  match($0, /gene_id "([^"]+)"/, gid);
-#  print $1, $4-1, $5, gid[1], ".", $7, $5-($4-1)
-#}' OFS="\t" "$GTF" > "$OUT_DIR/tmp/genes.bed"
+# Temporary directory for intermediate files
+TMP="${OUT_DIR}/tmp"
+mkdir -p "$TMP"
 
-# Calculate actual % TE overlap per gene
-#bedtools intersect -a "$OUT_DIR/tmp/genes.bed" -b "$TE_BED" -wo | \
-#awk '{key=$4; len[$4]=$7; bp[$4]+=$NF} END {
-#  for (g in bp) {
-#    pct = (bp[g] / len[g]) * 100;
-#    bin = (pct==0)?"0%":(pct<=10)?"<=10%":(pct<=25)?"<=25%":(pct<=50)?"<=50%":(pct<=75)?"<=75%":"100%";
-#    printf "%s\t%.2f\t%s\n", g, pct, bin;
-#  }
-#}' > "$OUT_DIR/tmp/gene_TE_overlap.tsv"
+# Convert GTF to gene BED
+awk '$3 == "gene" {
+    match($0, /gene_id \"([^\"]+)/, arr);
+    print $1, $4-1, $5, arr[1], ".", $7
+}' OFS="\t" "$GTF" > "$TMP/ref_genes.bed"
 
-# Loop through timepoints and annotate
-#for bedfile in "$BED_DIR"/*_K9_final.bed; do
-#  base=$(basename "$bedfile" _K9_final.bed)
+# Loop over timepoint BED files
+for bedfile in "$BED_DIR"/*_K9_final.bed; do
+    base=$(basename "$bedfile" _K9_final.bed)
 
-#  for WIN in 1000 5000; do
-#    label=$( [[ "$WIN" -eq 1000 ]] && echo "1kb" || echo "5kb" )
-#    homer_out="$OUT_DIR/tmp/${base}_${label}_homer.txt"
-#    annotatePeaks.pl "$bedfile" danRer11 -gtf "$GTF" -size $WIN > "$homer_out"
+    for WIN in 1000 5000; do
+        window_label="$( [ "$WIN" -eq 1000 ] && echo "1kb" || echo "5kb")"
+        echo "Processing $base with window $WIN..."
 
-    # Parse in Python
-#    python3 - <<EOF
-#import pandas as pd
+        # Trim BED to 6 columns for HOMER
+        trimmed_bed="$TMP/${base}_${window_label}_trimmed.bed"
+        cut -f1-6 "$bedfile" > "$trimmed_bed"
 
-#homer = pd.read_csv("$homer_out", sep="\t", comment="#")
-#homer = homer[homer["Gene Name"].str.startswith("ENSDART")].copy()
-#homer["first_exon_enriched"] = homer["Annotation"].str.contains("exon 1", na=False)
-#homer["multiple_exons"] = homer["Annotation"].str.count("exon") > 1
-#homer["multiple_introns"] = homer["Annotation"].str.count("intron") > 1
-#homer["region_class"] = homer["Annotation"].apply(
-#    lambda x: "first_exon" if "exon 1" in x else "exon" if "exon" in x else "intron" if "intron" in x else "other"
-#)
+        # Annotate peaks using HOMER
+        homer_out="$TMP/${base}_${window_label}_annot.txt"
+        annotatePeaks.pl "$trimmed_bed" danRer11 -gtf "$GTF" -size $WIN > "$homer_out"
 
-#homer["gene_id"] = homer["Gene Name"]
-#symbols = pd.read_csv("$SYMBOL_TSV", sep="\t", names=["gene_id", "gene_symbol"])
-#te_overlap = pd.read_csv("$OUT_DIR/tmp/gene_TE_overlap.tsv", sep="\t", names=["gene_id", "TE_overlap_pct", "TE_bin"])
-#merged = homer.merge(symbols, on="gene_id", how="left").merge(te_overlap, on="gene_id", how="left")
+        # Extract gene assignments and relative positions
+        awk 'NR > 1 && $2 ~ /^ENSDART/ {
+            split($8, a, " "); 
+            cat=$8; 
+            exon_count=gsub(/exon/, "", cat);
+            intron_count=gsub(/intron/, "", cat);
+            print $2, (cat ~ /first_exon/ ? "TRUE" : "FALSE"), 
+                       (exon_count > 1 ? "TRUE" : "FALSE"), 
+                       (intron_count > 1 ? "TRUE" : "FALSE")
+        }' OFS="\t" "$homer_out" > "$TMP/${base}_${window_label}_gene_class.txt"
 
-#merged["timepoint"] = "$base"
-#merged["window"] = "$label"
-#outcols = [
-#    "gene_symbol", "gene_id", "region_class", "multiple_exons", "multiple_introns", "first_exon_enriched",
-#    "TE_overlap_pct", "TE_bin", "timepoint", "window"
-#]
-#outname = "$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv"
-#merged[outcols].drop_duplicates().to_csv(outname, sep="\t", index=False)
-#EOF
-#  done
-#done
+        # Intersect peaks with genes to count overlap
+        bedtools intersect -a "$trimmed_bed" -b "$TE_BED" -wo | \
+            awk -v OFS="\t" '{print $1"_"$2"_"$3, $NF}' > "$TMP/${base}_${window_label}_TE_overlap.txt"
 
-#echo "All gene summaries written to: $OUT_DIR"
-curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $BASEDIR/refann1.gtf
+        # Calculate percent TE overlap per peak
+        awk '{
+            key=$1; len=split(key, tmp, "_");
+            peaklen = tmp[3] - tmp[2];
+            overlap[key] += $2
+        } END {
+            for (k in overlap) print k, overlap[k]
+        }' "$TMP/${base}_${window_label}_TE_overlap.txt" > "$TMP/${base}_${window_label}_TE_percent.tsv"
+
+        # Convert peak names to gene IDs from HOMER output
+        awk 'NR > 1 && $2 ~ /^ENSDART/ {
+            split($0, a, "\t");
+            print a[2], a[1]"_"a[3]"_"a[4]
+        }' "$homer_out" > "$TMP/${base}_${window_label}_peak_to_gene.txt"
+
+        # Run Python post-processing
+        python3 - <<EOF
+import pandas as pd
+
+genes = pd.read_csv("$TMP/${base}_${window_label}_gene_class.txt", sep="\t", header=None, names=["gene_id", "first_exon", "multiple_exons", "multiple_introns"])
+peaks = pd.read_csv("$TMP/${base}_${window_label}_peak_to_gene.txt", sep="\t", header=None, names=["gene_id", "peak_id"])
+te = pd.read_csv("$TMP/${base}_${window_label}_TE_percent.tsv", sep="\t", header=None, names=["peak_id", "te_overlap_bp"])
+symbols = pd.read_csv("$SYMBOL_TSV", sep="\t", header=None, names=["gene_id", "gene_symbol"])
+
+# Merge
+merged = pd.merge(peaks, te, on="peak_id", how="left")
+merged = pd.merge(merged, genes, on="gene_id", how="left")
+merged = pd.merge(merged, symbols, on="gene_id", how="left")
+
+# TE percent relative to peak size (1000 bp)
+merged["te_pct"] = merged["te_overlap_bp"] / 1000 * 100
+
+def bin_te(pct):
+    if pd.isna(pct): return "0%"
+    elif pct <= 10: return "<=10%"
+    elif pct <= 25: return "<=25%"
+    elif pct <= 50: return "<=50%"
+    elif pct <= 75: return "<=75%"
+    elif pct < 100: return "<100%"
+    else: return "100%"
+
+merged["TE_bin"] = merged["te_pct"].apply(bin_te)
+merged["timepoint"] = "$base"
+merged["window"] = "$window_label"
+
+# Output
+cols = ["gene_symbol", "gene_id", "multiple_exons", "multiple_introns", "first_exon", "TE_bin", "timepoint", "window"]
+merged[cols].drop_duplicates().to_csv("$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv", sep="\t", index=False)
+EOF
+
+    done
+done
+
+echo "All done. Outputs in: $OUT_DIR"
