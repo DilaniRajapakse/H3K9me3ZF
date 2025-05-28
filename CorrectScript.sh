@@ -1086,6 +1086,7 @@
 module load BEDTools/2.31.0-GCC-12.3.0
 module load Homer/5.1-foss-2023a-R-4.3.2
 module load pandas/1.0.5-foss-2022a-Python-3.10.4
+module load pybedtools/0.9.1-foss-2023a
 
 BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
 GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann1.gtf"
