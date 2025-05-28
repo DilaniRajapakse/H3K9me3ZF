@@ -1087,17 +1087,19 @@ INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_
 OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_summaries"
 mkdir -p "$OUT_DIR"
 
-# Define path for combined output
+# Combined output file
 COMBINED_FILE="${OUT_DIR}/combined_gene_summary_by_window.tsv"
-echo -e "gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0%\tTE_bin_<=10%\tTE_bin_<=25%\tTE_bin_<=50%\tTE_bin_<=75%\tTE_bin_100%\ttimepoint\twindow" > "$COMBINED_FILE"
 
-# Loop through input TSVs
+# Write fixed header with safe TE bin column names
+echo -e "gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0pct\tTE_bin_le10pct\tTE_bin_le25pct\tTE_bin_le50pct\tTE_bin_le75pct\tTE_bin_100pct\ttimepoint\twindow" > "$COMBINED_FILE"
+
+# Process each annotated file
 for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
     [ -e "$FILE" ] || continue
     BASENAME=$(basename "$FILE" .tsv)
     OUTFILE="${OUT_DIR}/${BASENAME}_summary.tsv"
 
-    # Extract timepoint and window size
+    # Get timepoint and window
     TIMEPOINT=$(echo "$BASENAME" | cut -d'_' -f1)
     if [[ "$BASENAME" == *1000bp* ]]; then
         WINDOW="1kb"
@@ -1123,7 +1125,6 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
         category    = $col["category"];
         te_bin      = $col["TE_bin"];
 
-        # Count exon/intron mentions in the category
         exons = gsub(/exon/, "exon", category);
         introns = gsub(/intron/, "intron", category);
         first_exon = (category ~ /first_exon/) ? "TRUE" : "FALSE";
@@ -1131,7 +1132,7 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
         multiple_exons = (exons > 1) ? "TRUE" : "FALSE";
         multiple_introns = (introns > 1) ? "TRUE" : "FALSE";
 
-        # Set only the correct TE bin flag to TRUE
+        # Exclusive TE bin labels without %
         bin_0 = bin_10 = bin_25 = bin_50 = bin_75 = bin_100 = "FALSE";
         if (te_bin == "0%")         bin_0 = "TRUE";
         else if (te_bin == "<=10%") bin_10 = "TRUE";
@@ -1140,11 +1141,12 @@ for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
         else if (te_bin == "<=75%") bin_75 = "TRUE";
         else if (te_bin == "100%")  bin_100 = "TRUE";
 
-        print gene_symbol, gene_id, multiple_exons, multiple_introns, first_exon, bin_0, bin_10, bin_25, bin_50, bin_75, bin_100, tp, win;
+        print gene_symbol, gene_id, multiple_exons, multiple_introns, first_exon,
+              bin_0, bin_10, bin_25, bin_50, bin_75, bin_100, tp, win;
     }
     ' "$FILE" > "$OUTFILE"
 
     tail -n +2 "$OUTFILE" >> "$COMBINED_FILE"
 done
 
-echo "Done. All summaries written to: $OUT_DIR"
+echo "All summaries saved in: $OUT_DIR"
