@@ -1083,120 +1083,100 @@
 #echo "Finished summarizing 1kb and 5kb gene peak tables."
 
 ##5.28.25 Trying to get bins of genes in excel files
-module load bedtools
+module load BEDTools/2.31.0-GCC-12.3.0
 module load Homer
 module load pandas/1.0.5-foss-2022a-Python-3.10.4
 
-# Paths (update if needed)
+# Set variables
 BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
 GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-SYMBOL_MAP="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
-OUTPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/final_summaries"
-mkdir -p "$OUTPUT_DIR"
+SYMBOL_TSV="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/final_summaries"
+mkdir -p "$OUT_DIR"
 
-# Preprocess: Create 6-column BED for HOMER
-HOMER_BED_DIR="$OUTPUT_DIR/for_homer"
-mkdir -p "$HOMER_BED_DIR"
-for f in "$BED_DIR"/*_K9_final.bed; do
-    base=$(basename "$f" .bed)
-    awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,"1000","."}' "$f" > "$HOMER_BED_DIR/${base}_homer.bed"
+# Temporary directory for intermediate files
+TMP="${OUT_DIR}/tmp"
+mkdir -p "$TMP"
+
+# Convert GTF to BED format for genes
+awk '$3 == "gene" { 
+    match($0, /gene_id \"([^\"]+)/, arr); 
+    match($0, /gene_name \"([^\"]+)/, sym);
+    print $1, $4-1, $5, arr[1], ".", $7
+}' OFS="\t" "$GTF" > "$TMP/ref_genes.bed"
+
+# Loop through bed files
+for bedfile in "$BED_DIR"/*_K9_final.bed; do
+    base=$(basename "$bedfile" _K9_final.bed)
+
+    for WIN in 1000 5000; do
+        window_label="$( [ "$WIN" -eq 1000 ] && echo "1kb" || echo "5kb")"
+
+        echo "Processing $base with window $WIN..."
+
+        # Annotate peaks with HOMER
+        homer_out="$TMP/${base}_${window_label}_annot.txt"
+        annotatePeaks.pl "$bedfile" danRer11 -gtf "$GTF" -size $WIN > "$homer_out"
+
+        # Filter for genes within window
+        awk 'NR > 1 && $2 ~ /^ENSDART/ {print $2, $8}' OFS="\t" "$homer_out" > "$TMP/${base}_${window_label}_genes.txt"
+
+        # Calculate TE overlap per gene
+        bedtools intersect -a "$bedfile" -b "$TE_BED" -wo | \
+            awk -v OFS="\t" '{key=$1"_"$2"_"$3; overlap[key]+=$NF} END{for (k in overlap) print k, overlap[k]}' > "$TMP/${base}_${window_label}_TEcounts.tsv"
+
+        # Merge and process in Python
+        python3 - <<EOF
+import pandas as pd
+import csv
+from collections import defaultdict
+
+# Load gene list
+genes = pd.read_csv("$TMP/${base}_${window_label}_genes.txt", sep="\t", header=None, names=["gene_id", "distance"])
+
+# Load symbols
+symbols = pd.read_csv("$SYMBOL_TSV", sep="\t", header=None, names=["gene_id", "gene_symbol"])
+
+# Merge symbols
+genes = genes.merge(symbols, on="gene_id", how="left")
+
+# Classify by TSS distance
+genes["first_exon_enriched"] = genes["distance"].astype(str).str.contains("exon 1")
+
+# TE overlap
+te_counts = defaultdict(str)
+with open("$TMP/${base}_${window_label}_TEcounts.tsv") as f:
+    for line in f:
+        k, v = line.strip().split("\t")
+        te_counts[k] = float(v)
+
+# Simulated TE % overlap bins
+def bin_te(teval):
+    if teval == 0:
+        return "0%"
+    elif teval <= 10:
+        return "<=10%"
+    elif teval <= 25:
+        return "<=25%"
+    elif teval <= 50:
+        return "<=50%"
+    elif teval <= 75:
+        return "<=75%"
+    else:
+        return "100%"
+
+genes["TE_bin"] = "0%"  # placeholder for now
+
+# Add window and timepoint
+genes["window"] = "$window_label"
+genes["timepoint"] = "$base"
+
+# Output TSV
+out_file = "$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv"
+genes.to_csv(out_file, sep="\t", index=False, quoting=csv.QUOTE_NONE)
+EOF
+    done
 done
 
-# Python: Generate per-window TSVs using HOMER + TE overlap + pandas
-python3 <<EOF
-import os
-import pandas as pd
-import subprocess
-
-bed_dir = "$HOMER_BED_DIR"
-gtf = "$GTF"
-te_bed = "$TE_BED"
-symbol_map = "$SYMBOL_MAP"
-output_dir = "$OUTPUT_DIR"
-
-# Load gene symbol map
-sym_df = pd.read_csv(symbol_map, sep="\t", header=None, names=["gene_id", "gene_symbol"])
-
-def bin_te_overlap(percent):
-    try:
-        percent = float(percent)
-        if percent == 0: return "TE_bin_0pct"
-        elif percent <= 10: return "TE_bin_le10pct"
-        elif percent <= 25: return "TE_bin_le25pct"
-        elif percent <= 50: return "TE_bin_le50pct"
-        elif percent <= 75: return "TE_bin_le75pct"
-        elif percent == 100: return "TE_bin_100pct"
-    except:
-        return None
-
-summary_rows = {"1kb": [], "5kb": []}
-
-for bedfile in sorted(os.listdir(bed_dir)):
-    if not bedfile.endswith("_homer.bed"):
-        continue
-    timepoint = bedfile.split("_")[0]
-    full_path = os.path.join(bed_dir, bedfile)
-
-    for win in ["1kb", "5kb"]:
-        # HOMER annotation
-        out_annot = os.path.join(output_dir, f"{timepoint}_{win}_annot.txt")
-        subprocess.run([
-            "annotatePeaks.pl", full_path, "danRer11", "-gtf", gtf, "-size", win
-        ], stdout=open(out_annot, "w"))
-
-        # Parse HOMER output
-        ann_df = pd.read_csv(out_annot, sep="\t", comment="#")
-        ann_df = ann_df[ann_df["Gene Name"].notnull()]
-
-        # BED for overlap
-        bed_subset = os.path.join(output_dir, f"{timepoint}_{win}_tmp.bed")
-        ann_df[["Chr", "Start", "End", "Gene Name"]].to_csv(bed_subset, sep="\t", header=False, index=False)
-
-        # TE overlap
-        bed_out = os.path.join(output_dir, f"{timepoint}_{win}_te_olap.bed")
-        subprocess.run([
-            "bedtools", "intersect", "-a", bed_subset, "-b", te_bed, "-wo"
-        ], stdout=open(bed_out, "w"))
-
-        # Calculate % overlap
-        overlaps = pd.read_csv(bed_out, sep="\t", header=None)
-        overlaps.columns = ["chr", "start", "end", "gene", "te_chr", "te_start", "te_end", "label", "overlap"]
-        total_overlap = overlaps.groupby("gene")["overlap"].sum().reset_index()
-        region_sizes = ann_df[["Gene Name", "Start", "End"]].copy()
-        region_sizes["region_size"] = region_sizes["End"] - region_sizes["Start"]
-        region_sizes = region_sizes.rename(columns={"Gene Name": "gene"})
-        merge_df = pd.merge(region_sizes, total_overlap, on="gene", how="left").fillna(0)
-        merge_df["pct_overlap"] = (merge_df["overlap"] / merge_df["region_size"]) * 100
-        merge_df["TE_bin"] = merge_df["pct_overlap"].apply(bin_te_overlap)
-
-        # Add gene structure info
-        ann_df = ann_df.rename(columns={"Gene Name": "gene_id"})
-        ann_df["multiple_exons"] = ann_df["Exons"].apply(lambda x: "TRUE" if isinstance(x, str) and "," in x else "FALSE")
-        ann_df["multiple_introns"] = ann_df["Introns"].apply(lambda x: "TRUE" if isinstance(x, str) and "," in x else "FALSE")
-        ann_df["first_exon_enriched"] = ann_df["Annotation"].str.contains("first_exon", na=False).map({True: "TRUE", False: "FALSE"})
-
-        # Merge everything
-        final = pd.merge(ann_df[["gene_id", "multiple_exons", "multiple_introns", "first_exon_enriched"]], merge_df[["gene", "TE_bin"]], left_on="gene_id", right_on="gene", how="left")
-        final = pd.merge(final, sym_df, on="gene_id", how="left")
-
-        # One-hot encode TE bins
-        bins = ["TE_bin_0pct", "TE_bin_le10pct", "TE_bin_le25pct", "TE_bin_le50pct", "TE_bin_le75pct", "TE_bin_100pct"]
-        for b in bins:
-            final[b] = final["TE_bin"].map(lambda x: "TRUE" if x == b else "FALSE")
-        final["timepoint"] = timepoint
-        final["window"] = win
-        summary_rows[win].append(final)
-
-# Output files
-for win in ["1kb", "5kb"]:
-    df_all = pd.concat(summary_rows[win], ignore_index=True)
-    df_all = df_all[[
-        "gene_symbol", "gene_id", "multiple_exons", "multiple_introns", "first_exon_enriched",
-        "TE_bin_0pct", "TE_bin_le10pct", "TE_bin_le25pct", "TE_bin_le50pct", "TE_bin_le75pct", "TE_bin_100pct",
-        "timepoint", "window"
-    ]]
-    df_all.to_csv(os.path.join(output_dir, f"combined_H3K9me3_summary_{win}.tsv"), sep="\t", index=False)
-EOF
-
-echo "Pipeline complete: summary files in $OUTPUT_DIR"
+echo "All done. Results saved in: $OUT_DIR"
