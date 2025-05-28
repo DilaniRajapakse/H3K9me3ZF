@@ -839,8 +839,8 @@
 ## make a summary table
 
 ##5.27.25 Trying again to make summary tables
-module load BEDTools
-module load Homer
+#module load BEDTools
+#module load Homer
 
 #BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #PEAKS_DIR="$BASEDIR/peaks"
@@ -1083,79 +1083,124 @@ module load Homer
 #echo "Finished summarizing 1kb and 5kb gene peak tables."
 
 ##5.28.25 Trying to get bins of genes in excel files
-INPUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols"
+# === LOAD MODULES ===
+module load BEDTools
+module load HOMER
 
-# Create a new, timestamped output directory
-DATE_TAG=$(date +%F)
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_summaries_${DATE_TAG}"
-mkdir -p "$OUT_DIR"
+# === INPUT FILES ===
+GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+SYMBOL_FILE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
+PEAK_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/by_timepoint"
 
-# Combined output path
-COMBINED_FILE="${OUT_DIR}/combined_gene_summary_by_window.tsv"
+# === OUTPUT BASE DIRECTORY ===
+OUTDIR_BASE="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/gene_peak_TE_summary_2025-05-28"
+mkdir -p "$OUTDIR_BASE"
 
-# Safe header line with renamed TE bin columns
-HEADER=$'gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0pct\tTE_bin_le10pct\tTE_bin_le25pct\tTE_bin_le50pct\tTE_bin_le75pct\tTE_bin_100pct\ttimepoint\twindow'
-printf "%s\n" "$HEADER" > "$COMBINED_FILE"
+# === STEP 1: Extract TSS and Generate TSS Windows ===
+echo "Extracting TSS and generating windows..."
+awk -F'\t' '$3 == "gene" {
+    match($9, /gene_id "([^"]+)"/, gid);
+    chr=$1; start=$4-1; end=$5; strand=$7;
+    if (strand == "+") tss=start; else tss=end;
+    print chr, tss, tss+1, gid[1], ".", strand
+}' "$GTF" > "$OUTDIR_BASE/tss.bed"
 
-# Process each file
-for FILE in "$INPUT_DIR"/*_TE_table_with_symbols.tsv; do
-    [ -e "$FILE" ] || continue
-    BASENAME=$(basename "$FILE" .tsv)
-    OUTFILE="${OUT_DIR}/${BASENAME}_summary.tsv"
-
-    # Extract metadata
-    TIMEPOINT=$(echo "$BASENAME" | cut -d'_' -f1)
-    [[ "$BASENAME" == *1000bp* ]] && WINDOW="1kb" || WINDOW="5kb"
-
-    # Write header to individual file
-    printf "%s\n" "$HEADER" > "$OUTFILE"
-
-    # Extract and clean data
-    awk -v tp="$TIMEPOINT" -v win="$WINDOW" '
-BEGIN { FS=OFS="\t"; }
-NR == 1 {
-    for (i = 1; i <= NF; i++) {
-        name = tolower($i);
-        if (name == "gene_symbol" || name == "gene_name") gs_col = i;
-        else if (name == "gene_id") gid_col = i;
-        else if (name == "category") cat_col = i;
-        else if (name == "te_bin") te_col = i;
+awk 'BEGIN{OFS="\t"} {
+    if ($6 == "+") {
+        print $1, ($2 - 1000 < 0 ? 0 : $2 - 1000), $2 + 1000, $4, ".", $6, "1kb"
+        print $1, ($2 - 5000 < 0 ? 0 : $2 - 5000), $2 + 5000, $4, ".", $6, "5kb"
+    } else {
+        print $1, ($3 - 1000 < 0 ? 0 : $3 - 1000), $3 + 1000, $4, ".", $6, "1kb"
+        print $1, ($3 - 5000 < 0 ? 0 : $3 - 5000), $3 + 5000, $4, ".", $6, "5kb"
     }
-    next;
-}
-{
-    gs = $gs_col;
-    gid = $gid_col;
-    gsub(/[()]/, "", gid);  # remove any parentheses from gene_id
-    cat = $cat_col;
-    te = $te_col;
+}' "$OUTDIR_BASE/tss.bed" > "$OUTDIR_BASE/tss_windows.bed"
 
-    # Trim whitespace
-    gsub(/^[ \t]+|[ \t]+$/, "", te);
+# === STEP 2: Process Each Timepoint ===
+for PEAKS in "$PEAK_DIR"/*.bed; do
+    TIMEPOINT=$(basename "$PEAKS" .bed)
+    echo "Processing $TIMEPOINT..."
 
-    if (gs == "" || gid !~ /^ENSDART[0-9]+$/) next;
+    for WINDOW in 1kb 5kb; do
+        echo "  Window: $WINDOW"
+        OUTDIR="$OUTDIR_BASE/$TIMEPOINT/$WINDOW"
+        mkdir -p "$OUTDIR"
 
-    exons = gsub(/exon/, "exon", cat);
-    introns = gsub(/intron/, "intron", cat);
-    first_exon = (cat ~ /first_exon/) ? "TRUE" : "FALSE";
+        awk -v win="$WINDOW" '$7 == win' "$OUTDIR_BASE/tss_windows.bed" > "$OUTDIR/tss_${WINDOW}.bed"
+        bedtools intersect -a "$OUTDIR/tss_${WINDOW}.bed" -b "$PEAKS" -u > "$OUTDIR/genes_with_peaks.bed"
 
-    multiple_exons = (exons > 1) ? "TRUE" : "FALSE";
-    multiple_introns = (introns > 1) ? "TRUE" : "FALSE";
+        annotatePeaks.pl "$OUTDIR/genes_with_peaks.bed" danRer11 -gtf "$GTF" > "$OUTDIR/genes_with_peaks.ann.txt"
+        awk -F'\t' 'NR>1 {print $2, $8}' OFS="\t" "$OUTDIR/genes_with_peaks.ann.txt" > "$OUTDIR/genes_with_peaks_feature_types.tsv"
 
-    bin_0 = bin_10 = bin_25 = bin_50 = bin_75 = bin_100 = "FALSE";
-    if (te == "0%")                     bin_0 = "TRUE";
-    else if (te ~ /^<=?\s*10%$/)       bin_10 = "TRUE";
-    else if (te ~ /^<=?\s*25%$/)       bin_25 = "TRUE";
-    else if (te ~ /^<=?\s*50%$/)       bin_50 = "TRUE";
-    else if (te ~ /^<=?\s*75%$/)       bin_75 = "TRUE";
-    else if (te == "100%")             bin_100 = "TRUE";
+        bedtools intersect -a "$OUTDIR/genes_with_peaks.bed" -b "$TE_BED" -wo > "$OUTDIR/TE_overlap_raw.txt"
+        awk 'BEGIN{OFS="\t"} {print $4, $3-$2}' "$OUTDIR/genes_with_peaks.bed" | sort -u > "$OUTDIR/gene_lengths.tsv"
 
-    print gs, gid, multiple_exons, multiple_introns, first_exon,
-          bin_0, bin_10, bin_25, bin_50, bin_75, bin_100, tp, win;
-}
-' "$FILE" >> "$OUTFILE"
+        python3 - <<EOF
+import pandas as pd
 
-    tail -n +2 "$OUTFILE" >> "$COMBINED_FILE"
+df = pd.read_csv("$OUTDIR/TE_overlap_raw.txt", sep="\t", header=None)
+df.columns = ["chr", "start", "end", "gene_id", ".", "strand", "window", "TE_chr", "TE_start", "TE_end", "TE_info", "overlap_bp"]
+te = df.groupby(["gene_id"])["overlap_bp"].sum().reset_index()
+
+lengths = pd.read_csv("$OUTDIR/gene_lengths.tsv", sep="\t", header=None, names=["gene_id", "length"])
+merged = pd.merge(te, lengths, on="gene_id")
+merged["percent_TE"] = (merged["overlap_bp"] / merged["length"]) * 100
+
+def bin_pct(p):
+    if p == 0: return "0%"
+    elif p <= 10: return "<=10%"
+    elif p <= 25: return "<=25%"
+    elif p <= 50: return "<=50%"
+    elif p <= 75: return "<=75%"
+    else: return "100%"
+
+merged["TE_bin"] = merged["percent_TE"].fillna(0).apply(bin_pct)
+
+features = pd.read_csv("$OUTDIR/genes_with_peaks_feature_types.tsv", sep="\t", names=["gene_id", "annotation"])
+merged["annotation"] = merged["gene_id"].map(dict(zip(features["gene_id"], features["annotation"]))).fillna("none")
+
+def classify(annot):
+    if "firstExon" in annot: return "first_exon"
+    elif "exon" in annot and "intron" in annot: return "both"
+    elif "exon" in annot: return "exon"
+    elif "intron" in annot: return "intron"
+    else: return "none"
+
+merged["peak_category"] = merged["annotation"].apply(classify)
+
+symbols = pd.read_csv("$SYMBOL_FILE", sep="\t", names=["gene_id", "symbol"])
+final = pd.merge(merged, symbols, on="gene_id", how="left")
+final["timepoint"] = "$TIMEPOINT"
+final["window"] = "$WINDOW"
+
+final[["symbol", "gene_id", "window", "timepoint", "length", "percent_TE", "TE_bin", "peak_category"]].to_csv("$OUTDIR/gene_TE_peak_summary.tsv", sep="\t", index=False)
+EOF
+
+    done
 done
 
-echo "Done. All summaries saved to: $OUT_DIR"
+# === STEP 3: Merge All Timepoints into One File ===
+echo "Merging all results..."
+
+python3 - <<EOF
+import os
+import glob
+import pandas as pd
+
+base_dir = "$OUTDIR_BASE"
+out_file = os.path.join(base_dir, "merged_gene_TE_summary.tsv")
+
+files = glob.glob(f"{base_dir}/*/*/gene_TE_peak_summary.tsv")
+all_dfs = []
+
+for f in files:
+    df = pd.read_csv(f, sep="\\t")
+    all_dfs.append(df)
+
+merged = pd.concat(all_dfs, ignore_index=True)
+merged = merged.sort_values(by=["symbol", "gene_id", "timepoint", "window"])
+merged.to_csv(out_file, sep="\\t", index=False)
+print(f"Merged summary saved to: {out_file}")
+EOF
+
+echo "Pipeline complete."
