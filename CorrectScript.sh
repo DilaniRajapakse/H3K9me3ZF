@@ -1094,7 +1094,7 @@ mkdir -p "$OUT_DIR"
 COMBINED_FILE="${OUT_DIR}/combined_gene_summary_by_window.tsv"
 
 # Safe header line with renamed TE bin columns
-HEADER="gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0pct\tTE_bin_le10pct\tTE_bin_le25pct\tTE_bin_le50pct\tTE_bin_le75pct\tTE_bin_100pct\ttimepoint\twindow"
+HEADER=$'gene_symbol\tgene_id\tmultiple_exons\tmultiple_introns\tfirst_exon_enriched\tTE_bin_0pct\tTE_bin_le10pct\tTE_bin_le25pct\tTE_bin_le50pct\tTE_bin_le75pct\tTE_bin_100pct\ttimepoint\twindow'
 printf "%s\n" "$HEADER" > "$COMBINED_FILE"
 
 # Process each file
