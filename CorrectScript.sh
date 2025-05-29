@@ -1123,12 +1123,21 @@ import pybedtools
 annot = pd.read_csv("$annot_file", sep="\t")
 
 # Standardize columns
+# Clean column names
+annot.columns = annot.columns.str.strip()
+
+# Rename only if the columns exist
+if "PeakID" in annot.columns:
+    annot = annot.rename(columns={"PeakID": "peak_id"})
+elif annot.columns[0].startswith("PeakID"):
+    annot = annot.rename(columns={annot.columns[0]: "peak_id"})
+
 annot = annot.rename(columns={
     "Gene Name": "gene_symbol",
     "Nearest Ensembl": "gene_id",
-    "PeakID": "peak_id",
     "Annotation": "annotation"
 })
+
 
 # Filter missing gene_id
 annot = annot.dropna(subset=["gene_id"])
