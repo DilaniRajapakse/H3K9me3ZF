@@ -1092,11 +1092,14 @@ BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
 GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann1.gtf"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
 SYMBOL_TSV="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/H3K9me3_summary_tables/with_symbols/zebrafish_ensid_to_symbol.tsv"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/finalsummaries3"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/finalsummaries4"
 TMP="${OUT_DIR}/tmp"
 
 mkdir -p "$TMP"
 mkdir -p "$OUT_DIR"
+
+# Make a temporary Python script
+PY_SCRIPT="$TMP/compute_TE_overlap.py"
 
 # Loop through each peak file
 for bedfile in "$BED_DIR"/*_K9_final.bed; do
@@ -1106,6 +1109,7 @@ for bedfile in "$BED_DIR"/*_K9_final.bed; do
         window_label="$( [ "$WIN" -eq 1000 ] && echo "1kb" || echo "5kb")"
         trimmed_bed="$TMP/${base}_${window_label}_trimmed.bed"
         annot_file="$TMP/${base}_${window_label}_annot.txt"
+        output_tsv="$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv"
 
         # Trim BED to first 6 columns
         awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6}' "$bedfile" > "$trimmed_bed"
@@ -1113,20 +1117,25 @@ for bedfile in "$BED_DIR"/*_K9_final.bed; do
         # Annotate peaks with HOMER
         annotatePeaks.pl "$trimmed_bed" danRer11 -gtf "$GTF" -size $WIN > "$annot_file"
 
-        # Process in Python
-        python3 - <<EOF
+        # Write the Python code to a file
+        cat <<EOF > "$PY_SCRIPT"
 import pandas as pd
 import csv
 import pybedtools
 
-# Load annotation
-annot = pd.read_csv("$annot_file", sep="\t")
+annot_file = "$annot_file"
+trimmed_bed = "$trimmed_bed"
+te_bed_path = "$TE_BED"
+symbol_tsv = "$SYMBOL_TSV"
+timepoint = "$base"
+window = "$window_label"
+output = "$output_tsv"
 
-# Standardize columns
-# Clean column names
+# Load annotation
+annot = pd.read_csv(annot_file, sep="\t", comment="#")
 annot.columns = annot.columns.str.strip()
 
-# Rename only if the columns exist
+# Fix column names
 if "PeakID" in annot.columns:
     annot = annot.rename(columns={"PeakID": "peak_id"})
 elif annot.columns[0].startswith("PeakID"):
@@ -1138,51 +1147,50 @@ annot = annot.rename(columns={
     "Annotation": "annotation"
 })
 
-
-# Filter missing gene_id
+# Remove missing gene_id
 annot = annot.dropna(subset=["gene_id"])
 
-# Classify peak location
+# Classify exon/intron presence
 annot["multiple_exons"] = annot["annotation"].str.contains("exon") & ~annot["annotation"].str.contains("exon 1")
 annot["first_exon"] = annot["annotation"].str.contains("exon 1")
 annot["multiple_introns"] = annot["annotation"].str.contains("intron")
 
-# Calculate peak lengths
-peaks_bed = pybedtools.BedTool("$trimmed_bed")
-peak_lengths = {}
-for i in peaks_bed:
-    peak_lengths[i.name] = int(i.end) - int(i.start)
+# Peak lengths
+peaks = pybedtools.BedTool(trimmed_bed)
+peak_lengths = {i.name: int(i.end) - int(i.start) for i in peaks}
 
-# TE overlap per peak
-te_bed = pybedtools.BedTool("$TE_BED")
+# TE overlap bp
+te = pybedtools.BedTool(te_bed_path)
 overlaps = {}
-for i in peaks_bed.intersect(te_bed, wo=True):
+for i in peaks.intersect(te, wo=True):
     pid = i.name
     overlaps[pid] = overlaps.get(pid, 0) + int(i.fields[-1])
 
-# Assign TE overlap % and bin
+# Compute % TE overlap
 annot["TE_bp"] = annot["peak_id"].map(overlaps).fillna(0)
 annot["Peak_bp"] = annot["peak_id"].map(peak_lengths).fillna(1)
 annot["TE_pct"] = (annot["TE_bp"] / annot["Peak_bp"]) * 100
 
+# Bin TE overlap
 bins = [-0.1, 0, 10, 25, 50, 75, 100]
 labels = ["0%", "<=10%", "<=25%", "<=50%", "<=75%", "100%"]
 annot["TE_bin"] = pd.cut(annot["TE_pct"], bins=bins, labels=labels, include_lowest=True)
 
-# Add timepoint and window
-annot["timepoint"] = "$base"
-annot["window"] = "$window_label"
+annot["timepoint"] = timepoint
+annot["window"] = window
 
-# Merge in gene symbols (optional, already present)
-symbols = pd.read_csv("$SYMBOL_TSV", sep="\t", header=None, names=["gene_id", "gene_symbol"])
-annot = pd.merge(annot, symbols, on="gene_id", how="left", suffixes=("", "_sym"))
+# Merge symbols
+symbols = pd.read_csv(symbol_tsv, sep="\t", header=None, names=["gene_id", "gene_symbol_sym"])
+annot = pd.merge(annot, symbols, on="gene_id", how="left")
+annot["gene_symbol"] = annot["gene_symbol"].combine_first(annot["gene_symbol_sym"])
 
-# Output columns
+# Output
 cols = ["gene_symbol", "gene_id", "multiple_exons", "multiple_introns", "first_exon", "TE_bin", "timepoint", "window"]
-out = annot[cols].drop_duplicates()
-
-out.to_csv("$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv", sep="\t", index=False, quoting=csv.QUOTE_NONE)
+annot[cols].drop_duplicates().to_csv(output, sep="\t", index=False, quoting=csv.QUOTE_NONE)
 EOF
+
+        # Run the Python script
+        python3 "$PY_SCRIPT"
     done
 done
 
