@@ -1083,36 +1083,103 @@
 #echo "Finished summarizing 1kb and 5kb gene peak tables."
 
 ##5.28.25 Trying to get bins of genes in excel files/ 5.29.25
-module load BEDTools/2.31.0-GCC-12.3.0
-module load Homer/5.1-foss-2023a-R-4.3.2
+#module load BEDTools/2.31.0-GCC-12.3.0
+#module load Homer/5.1-foss-2023a-R-4.3.2
 
-BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
-GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann1.gtf"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/finalsummaries5"
-TMP="${OUT_DIR}/tmp"
+#BED_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
+#GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann1.gtf"
+#OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/finalsummaries5"
+#TMP="${OUT_DIR}/tmp"
 
-mkdir -p "$TMP"
-mkdir -p "$OUT_DIR"
+#mkdir -p "$TMP"
+#mkdir -p "$OUT_DIR"
 
 # Loop through each BED file
-for bedfile in "$BED_DIR"/*_K9_final.bed; do
-    base=$(basename "$bedfile" _K9_final.bed)
+#for bedfile in "$BED_DIR"/*_K9_final.bed; do
+#    base=$(basename "$bedfile" _K9_final.bed)
 
-    for WIN in 1000 5000; do
-        window_label="$( [ "$WIN" -eq 1000 ] && echo "1kb" || echo "5kb")"
-        trimmed_bed="$TMP/${base}_${window_label}_trimmed.bed"
-        annot_file="$TMP/${base}_${window_label}_annot.txt"
-        output_tsv="$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv"
+#    for WIN in 1000 5000; do
+#        window_label="$( [ "$WIN" -eq 1000 ] && echo "1kb" || echo "5kb")"
+#        trimmed_bed="$TMP/${base}_${window_label}_trimmed.bed"
+#        annot_file="$TMP/${base}_${window_label}_annot.txt"
+#        output_tsv="$OUT_DIR/${base}_K9_TSS${WIN}bp_TE_table_with_symbols_summary.tsv"
 
         # Trim to first 6 columns
-        awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6}' "$bedfile" > "$trimmed_bed"
+#        awk 'BEGIN{OFS="\t"} {print $1,$2,$3,$4,$5,$6}' "$bedfile" > "$trimmed_bed"
 
         # Annotate with HOMER
-        annotatePeaks.pl "$trimmed_bed" danRer11 -gtf "$GTF" -size $WIN > "$annot_file"
+#        annotatePeaks.pl "$trimmed_bed" danRer11 -gtf "$GTF" -size $WIN > "$annot_file"
 
         # Run external Python script
-        python3 compute_TE_overlap.py "$annot_file" "$trimmed_bed" "$output_tsv" "$base" "$window_label"
-    done
+#        python3 compute_TE_overlap.py "$annot_file" "$trimmed_bed" "$output_tsv" "$base" "$window_label"
+#    done
+#done
+
+#echo "All done. Output saved to: $OUT_DIR"
+
+##6.3.25 From Scratch,Doing what Katie and Ashley did and then working off of that script
+module load BEDTools/2.31.0-GCC-12.3.0
+module load Homer/5.1-foss-2023a-R-4.3.2 
+
+# Define key paths
+BASE_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+PEAK_ANN_DIR="$BASE_DIR/peaks/ann"
+TE_BED="$BASE_DIR/peaks/TEann_35_0.1filt.bed"
+GTF="$BASE_DIR/refann.gtf"
+
+# Output directories
+OUT_1KB="$BASE_DIR/peaks/filtered_peaks_1kb_noTE"
+OUT_5KB="$BASE_DIR/peaks/filtered_peaks_5kb_noTE"
+mkdir -p "$OUT_1KB" "$OUT_5KB"
+
+#####################################
+# Step 1: Convert .txt annotation files to BED for TE filtering
+#####################################
+
+# 1kb TSS window
+for infile in $PEAK_ANN_DIR/*1000bp_ann.txt
+do
+  base=$(basename "$infile" _1000bp_ann.txt)
+  awk -F'\t' 'BEGIN{OFS="\t"} {print $2, $3, $4, $1}' "$infile" > "$OUT_1KB/${base}.1000bp.bed"
 done
 
-echo "All done. Output saved to: $OUT_DIR"
+# 5kb TSS window
+for infile in $PEAK_ANN_DIR/*5000bp_ann.txt
+do
+  base=$(basename "$infile" _5000bp_ann.txt)
+  awk -F'\t' 'BEGIN{OFS="\t"} {print $2, $3, $4, $1}' "$infile" > "$OUT_5KB/${base}.5000bp.bed"
+done
+
+#####################################
+# Step 2: Remove peaks with ≥50% TE overlap
+#####################################
+
+# 1kb
+for bedfile in $OUT_1KB/*.1000bp.bed
+do
+  base=$(basename "$bedfile" .1000bp.bed)
+  bedtools intersect -a "$bedfile" -b "$TE_BED" -f 0.50 -v > "$OUT_1KB/${base}.1000bp_noTE.bed"
+done
+
+# 5kb
+for bedfile in $OUT_5KB/*.5000bp.bed
+do
+  base=$(basename "$bedfile" .5000bp.bed)
+  bedtools intersect -a "$bedfile" -b "$TE_BED" -f 0.50 -v > "$OUT_5KB/${base}.5000bp_noTE.bed"
+done
+
+#####################################
+# Step 3 (optional): Annotate noTE-filtered peaks again with HOMER
+#####################################
+
+for bedfile in $OUT_1KB/*.1000bp_noTE.bed
+do
+  base=$(basename "$bedfile" .1000bp_noTE.bed)
+  annotatePeaks.pl "$bedfile" danRer11 -gtf "$GTF" > "$OUT_1KB/${base}.1000bp_noTE.ann.txt"
+done
+
+for bedfile in $OUT_5KB/*.5000bp_noTE.bed
+do
+  base=$(basename "$bedfile" .5000bp_noTE.bed)
+  annotatePeaks.pl "$bedfile" danRer11 -gtf "$GTF" > "$OUT_5KB/${base}.5000bp_noTE.ann.txt"
+done
