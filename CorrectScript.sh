@@ -1121,65 +1121,84 @@
 module load BEDTools/2.31.0-GCC-12.3.0
 module load Homer/5.1-foss-2023a-R-4.3.2 
 
-# Define key paths
 BASE_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
-PEAK_ANN_DIR="$BASE_DIR/peaks/ann"
+MASKANN_DIR="$BASE_DIR/peaks/ann"
 TE_BED="$BASE_DIR/peaks/TEann_35_0.1filt.bed"
 GTF="$BASE_DIR/refann.gtf"
 
-# Output directories
+# Create output directories
 OUT_1KB="$BASE_DIR/peaks/filtered_peaks_1kb_noTE"
 OUT_5KB="$BASE_DIR/peaks/filtered_peaks_5kb_noTE"
 mkdir -p "$OUT_1KB" "$OUT_5KB"
 
-#####################################
-# Step 1: Convert .txt annotation files to BED for TE filtering
-#####################################
+############################################
+# Step 1: Filter for distance to TSS (1kb and 5kb)
+############################################
 
-# 1kb TSS window
-for infile in $PEAK_ANN_DIR/*1000bp_ann.txt
+# 1kb filtering
+for file in $MASKANN_DIR/*maskann.txt
 do
-  base=$(basename "$infile" _1000bp_ann.txt)
-  awk -F'\t' 'BEGIN{OFS="\t"} {print $2, $3, $4, $1}' "$infile" > "$OUT_1KB/${base}.1000bp.bed"
+  base=$(basename "$file" _maskann.txt)
+  awk -F'\t' 'NR==1 || sqrt($10*$10) <= 1000' "$file" > "$OUT_1KB/${base}.1000bp_ann.txt"
 done
 
-# 5kb TSS window
-for infile in $PEAK_ANN_DIR/*5000bp_ann.txt
+# 5kb filtering
+for file in $MASKANN_DIR/*maskann.txt
 do
-  base=$(basename "$infile" _5000bp_ann.txt)
-  awk -F'\t' 'BEGIN{OFS="\t"} {print $2, $3, $4, $1}' "$infile" > "$OUT_5KB/${base}.5000bp.bed"
+  base=$(basename "$file" _maskann.txt)
+  awk -F'\t' 'NR==1 || sqrt($10*$10) <= 5000' "$file" > "$OUT_5KB/${base}.5000bp_ann.txt"
 done
 
-#####################################
-# Step 2: Remove peaks with ≥50% TE overlap
-#####################################
+############################################
+# Step 2: Convert filtered .txt to BED format
+############################################
 
-# 1kb
-for bedfile in $OUT_1KB/*.1000bp.bed
+# 1kb BED
+for file in $OUT_1KB/*.1000bp_ann.txt
 do
-  base=$(basename "$bedfile" .1000bp.bed)
-  bedtools intersect -a "$bedfile" -b "$TE_BED" -f 0.50 -v > "$OUT_1KB/${base}.1000bp_noTE.bed"
+  base=$(basename "$file" .1000bp_ann.txt)
+  awk -F'\t' 'NR>1 {OFS="\t"; print $2, $3, $4, $1}' "$file" > "$OUT_1KB/${base}.1000bp.bed"
 done
 
-# 5kb
-for bedfile in $OUT_5KB/*.5000bp.bed
+# 5kb BED
+for file in $OUT_5KB/*.5000bp_ann.txt
 do
-  base=$(basename "$bedfile" .5000bp.bed)
-  bedtools intersect -a "$bedfile" -b "$TE_BED" -f 0.50 -v > "$OUT_5KB/${base}.5000bp_noTE.bed"
+  base=$(basename "$file" .5000bp_ann.txt)
+  awk -F'\t' 'NR>1 {OFS="\t"; print $2, $3, $4, $1}' "$file" > "$OUT_5KB/${base}.5000bp.bed"
 done
 
-#####################################
-# Step 3 (optional): Annotate noTE-filtered peaks again with HOMER
-#####################################
+############################################
+# Step 3: Remove peaks overlapping TEs by ≥50%
+############################################
 
-for bedfile in $OUT_1KB/*.1000bp_noTE.bed
+# 1kb noTE
+for bed in $OUT_1KB/*.1000bp.bed
 do
-  base=$(basename "$bedfile" .1000bp_noTE.bed)
-  annotatePeaks.pl "$bedfile" danRer11 -gtf "$GTF" > "$OUT_1KB/${base}.1000bp_noTE.ann.txt"
+  base=$(basename "$bed" .1000bp.bed)
+  bedtools intersect -a "$bed" -b "$TE_BED" -f 0.50 -v > "$OUT_1KB/${base}.1000bp_noTE.bed"
 done
 
-for bedfile in $OUT_5KB/*.5000bp_noTE.bed
+# 5kb noTE
+for bed in $OUT_5KB/*.5000bp.bed
 do
-  base=$(basename "$bedfile" .5000bp_noTE.bed)
-  annotatePeaks.pl "$bedfile" danRer11 -gtf "$GTF" > "$OUT_5KB/${base}.5000bp_noTE.ann.txt"
+  base=$(basename "$bed" .5000bp.bed)
+  bedtools intersect -a "$bed" -b "$TE_BED" -f 0.50 -v > "$OUT_5KB/${base}.5000bp_noTE.bed"
+done
+
+############################################
+# Step 4: (Optional) Re-annotate filtered noTE peaks with HOMER
+############################################
+
+for bed in $OUT_1KB/*.1000bp_noTE.bed
+do
+  base=$(basename "$bed" .1000bp_noTE.bed)
+  annotatePeaks.pl "$bed" danRer11 -gtf "$GTF" > "$OUT_1KB/${base}.1000bp_noTE.ann.txt"
+done
+
+for bed in $OUT_5KB/*.5000bp_noTE.bed
+do
+  base=$(basename "$bed" .5000bp_noTE.bed)
+  annotatePeaks.pl "$bed" danRer11 -gtf "$GTF" > "$OUT_5KB/${base}.5000bp_noTE.ann.txt"
+done
+
 done
