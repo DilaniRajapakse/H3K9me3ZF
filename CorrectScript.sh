@@ -5,25 +5,26 @@
 #SBATCH --cpus-per-task=24		                            # Number of cores per task - match this to the num_threads used by BLAST
 #SBATCH --mem=120gb			                                # Total memory for job
 #SBATCH --time=72:00:00  		                            # Time limit hrs:min:sec
-#SBATCH --output=/scratch/dr27977/log.%j		    # Location of standard output and error log files (replace cbergman with your myid)
+#SBATCH --output=/scratch/dr27977/log.%j.out
+#SBATCH --error=/scratch/dr27977/log.%j.err		    # Location of standard output and error log files (replace cbergman with your myid)
 #SBATCH --mail-user=dr27977@uga.edu                    # Where to send mail (replace cbergman with your myid)
 #SBATCH --mail-type=ALL                            # Mail events (BEGIN, END, FAIL, ALL)
 
-#OUTDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published" 
+OUTDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published" 
 #if output directory doesn't exist, create it
-#if [ ! -d $OUTDIR ]
-#then
-#    mkdir -p $OUTDIR
-#fi
-#cd $OUTDIR
+if [ ! -d $OUTDIR ]
+then
+    mkdir -p $OUTDIR
+fi
+cd $OUTDIR
 
-#HOMEDIR="/home/dr27977/H3K9me3ZF"
-#if [ ! -d $HOMEDIR ]
-#then
-#    mkdir -p $HOMEDIR
-#fi
+HOMEDIR="/home/dr27977/H3K9me3ZF"
+if [ ! -d $HOMEDIR ]
+then
+    mkdir -p $HOMEDIR
+fi
 
-#BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #ml STAR (SAMtools/1.18-GCC-12.3.0 )
 #for file in $OUTDIR/*_R*.fastq.gz;
@@ -1118,87 +1119,124 @@
 #echo "All done. Output saved to: $OUT_DIR"
 
 ##6.3.25 From Scratch,Doing what Katie and Ashley did and then working off of that script
-module load BEDTools/2.31.0-GCC-12.3.0
-module load Homer/5.1-foss-2023a-R-4.3.2 
+#module load BEDTools/2.31.0-GCC-12.3.0
+#module load Homer/5.1-foss-2023a-R-4.3.2 
 
-BASE_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
-MASKANN_DIR="$BASE_DIR/peaks/ann"
-TE_BED="$BASE_DIR/peaks/TEann_35_0.1filt.bed"
-GTF="$BASE_DIR/refann.gtf"
+#BASE_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+#MASKANN_DIR="$BASE_DIR/peaks/ann"
+#TE_BED="$BASE_DIR/peaks/TEann_35_0.1filt.bed"
+#GTF="$BASE_DIR/refann.gtf"
 
 # Create output directories
-OUT_1KB="$BASE_DIR/peaks/filtered_peaks_1kb_noTE"
-OUT_5KB="$BASE_DIR/peaks/filtered_peaks_5kb_noTE"
-mkdir -p "$OUT_1KB" "$OUT_5KB"
+#OUT_1KB="$BASE_DIR/peaks/filtered_peaks_1kb_noTE"
+#OUT_5KB="$BASE_DIR/peaks/filtered_peaks_5kb_noTE"
+#mkdir -p "$OUT_1KB" "$OUT_5KB"
 
 ############################################
 # Step 1: Filter for distance to TSS (1kb and 5kb)
 ############################################
 
 # 1kb filtering
-for file in $MASKANN_DIR/*maskann.txt
-do
-  base=$(basename "$file" _maskann.txt)
-  awk -F'\t' 'NR==1 || sqrt($10*$10) <= 1000' "$file" > "$OUT_1KB/${base}.1000bp_ann.txt"
-done
+#for file in $MASKANN_DIR/*maskann.txt
+#do
+#  base=$(basename "$file" _maskann.txt)
+#  awk -F'\t' 'NR==1 || sqrt($10*$10) <= 1000' "$file" > "$OUT_1KB/${base}.1000bp_ann.txt"
+#done
 
 # 5kb filtering
-for file in $MASKANN_DIR/*maskann.txt
-do
-  base=$(basename "$file" _maskann.txt)
-  awk -F'\t' 'NR==1 || sqrt($10*$10) <= 5000' "$file" > "$OUT_5KB/${base}.5000bp_ann.txt"
-done
+#for file in $MASKANN_DIR/*maskann.txt
+#do
+#  base=$(basename "$file" _maskann.txt)
+#  awk -F'\t' 'NR==1 || sqrt($10*$10) <= 5000' "$file" > "$OUT_5KB/${base}.5000bp_ann.txt"
+#done
 
 ############################################
 # Step 2: Convert filtered .txt to BED format
 ############################################
 
 # 1kb BED
-for file in $OUT_1KB/*.1000bp_ann.txt
-do
-  base=$(basename "$file" .1000bp_ann.txt)
-  awk -F'\t' 'NR>1 {OFS="\t"; print $2, $3, $4, $1}' "$file" > "$OUT_1KB/${base}.1000bp.bed"
-done
+#for file in $OUT_1KB/*.1000bp_ann.txt
+#do
+#  base=$(basename "$file" .1000bp_ann.txt)
+#  awk -F'\t' 'NR>1 {OFS="\t"; print $2, $3, $4, $1}' "$file" > "$OUT_1KB/${base}.1000bp.bed"
+#done
 
 # 5kb BED
-for file in $OUT_5KB/*.5000bp_ann.txt
-do
-  base=$(basename "$file" .5000bp_ann.txt)
-  awk -F'\t' 'NR>1 {OFS="\t"; print $2, $3, $4, $1}' "$file" > "$OUT_5KB/${base}.5000bp.bed"
-done
+#for file in $OUT_5KB/*.5000bp_ann.txt
+#do
+#  base=$(basename "$file" .5000bp_ann.txt)
+#  awk -F'\t' 'NR>1 {OFS="\t"; print $2, $3, $4, $1}' "$file" > "$OUT_5KB/${base}.5000bp.bed"
+#done
 
 ############################################
 # Step 3: Remove peaks overlapping TEs by ≥50%
 ############################################
 
 # 1kb noTE
-for bed in $OUT_1KB/*.1000bp.bed
-do
-  base=$(basename "$bed" .1000bp.bed)
-  bedtools intersect -a "$bed" -b "$TE_BED" -f 0.50 -v > "$OUT_1KB/${base}.1000bp_noTE.bed"
-done
+#for bed in $OUT_1KB/*.1000bp.bed
+#do
+#  base=$(basename "$bed" .1000bp.bed)
+#  bedtools intersect -a "$bed" -b "$TE_BED" -f 0.50 -v > "$OUT_1KB/${base}.1000bp_noTE.bed"
+#done
 
 # 5kb noTE
-for bed in $OUT_5KB/*.5000bp.bed
-do
-  base=$(basename "$bed" .5000bp.bed)
-  bedtools intersect -a "$bed" -b "$TE_BED" -f 0.50 -v > "$OUT_5KB/${base}.5000bp_noTE.bed"
-done
+#for bed in $OUT_5KB/*.5000bp.bed
+#do
+#  base=$(basename "$bed" .5000bp.bed)
+#  bedtools intersect -a "$bed" -b "$TE_BED" -f 0.50 -v > "$OUT_5KB/${base}.5000bp_noTE.bed"
+#done
 
 ############################################
 # Step 4: (Optional) Re-annotate filtered noTE peaks with HOMER
 ############################################
 
-for bed in $OUT_1KB/*.1000bp_noTE.bed
-do
-  base=$(basename "$bed" .1000bp_noTE.bed)
-  annotatePeaks.pl "$bed" danRer11 -gtf "$GTF" > "$OUT_1KB/${base}.1000bp_noTE.ann.txt"
-done
+#for bed in $OUT_1KB/*.1000bp_noTE.bed
+#do
+#  base=$(basename "$bed" .1000bp_noTE.bed)
+#  annotatePeaks.pl "$bed" danRer11 -gtf "$GTF" > "$OUT_1KB/${base}.1000bp_noTE.ann.txt"
+#done
 
-for bed in $OUT_5KB/*.5000bp_noTE.bed
-do
-  base=$(basename "$bed" .5000bp_noTE.bed)
-  annotatePeaks.pl "$bed" danRer11 -gtf "$GTF" > "$OUT_5KB/${base}.5000bp_noTE.ann.txt"
-done
+#for bed in $OUT_5KB/*.5000bp_noTE.bed
+#do
+#  base=$(basename "$bed" .5000bp_noTE.bed)
+#  annotatePeaks.pl "$bed" danRer11 -gtf "$GTF" > "$OUT_5KB/${base}.5000bp_noTE.ann.txt"
+#done
 
-done
+#done
+
+##6.4.24 Making files that show peaks within 1kb and within 5kb of a TSS
+module load Homer/5.1-foss-2023a-R-4.3.2
+curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $OUTDIR/refann.gtf
+ mkdir $OUTDIR/peaksnew/ann
+
+ for infile in /scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/*final.bed
+ do
+   base=$( basename ${infile} final.bed)
+   annotatePeaks.pl $infile danRer11 -gtf $OUTDIR/refann.gtf > $OUTDIR/peaksnew/ann/${base}.maskann.txt
+ done
+
+##Filter peaks within 1kb of TSS
+ for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+ do
+   base=$(basename ${infile} .maskann.txt)
+   awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $OUTDIR/peaksnew/ann/${base}.1000bp_ann.txt
+ done
+## Filter peaks greater than 1Kb of TSS
+ for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+ do
+   base=$(basename ${infile} .maskann.txt)
+   awk -F'\t' 'sqrt($10*$10) >=1000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $OUTDIR/peaksnew/ann/${base}.MOREthan1000bp.bed
+ done
+
+ ##Filter peaks within 5kb of TSS
+ for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+ do
+   base=$(basename ${infile} .maskann.txt)
+   awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $OUTDIR/peaksnew/ann/${base}.5000bp_ann.txt
+ done
+## Filter peaks greater than 5Kb of TSS
+ for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+ do
+   base=$(basename ${infile} .maskann.txt)
+   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $OUTDIR/peaksnew/ann/${base}.MOREthan5000bp.bed
+ done
