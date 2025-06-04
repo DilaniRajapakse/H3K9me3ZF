@@ -1207,11 +1207,12 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 ##6.4.24 Making files that show peaks within 1kb and within 5kb of a TSS
 module load Homer/5.1-foss-2023a-R-4.3.2
 curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $OUTDIR/refann.gtf
- mkdir $OUTDIR/peaksnew/ann
+mkdir -p $OUTDIR/peaksnew/ann
+
 
  for infile in /scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/*final.bed
  do
-   base=$( basename ${infile} final.bed)
+   base=$( basename ${infile} _final.bed)
    annotatePeaks.pl $infile danRer11 -gtf $OUTDIR/refann.gtf > $OUTDIR/peaksnew/ann/${base}.maskann.txt
  done
 
