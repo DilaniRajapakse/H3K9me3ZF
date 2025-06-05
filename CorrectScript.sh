@@ -1247,7 +1247,7 @@ module load BEDTools/2.31.0-GCC-12.3.0
 # ==== SET PATHS ====
 ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/TE"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/TE/TEwithorwithoutoverlap"
 mkdir -p $OUT_DIR
 
 # ==== PROCESS EACH 1kb & 5kb PEAK FILE ====
@@ -1263,13 +1263,15 @@ for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
 
     # Step 3: Extract peaks with NO TE overlap (overlap length == 0)
     awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_NO_TE_overlap.bed
+    awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_NO_TE_overlap.txt  # New
 
     # Step 4: Extract peaks WITH TE overlap (overlap length > 0)
     awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_WITH_TE_overlap.bed
+    awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_WITH_TE_overlap.txt  # New
 done
 
 echo "Done. Output in $OUT_DIR includes:"
 echo "  - BED: converted peaks"
 echo "  - *_TE_overlap_raw.txt: full intersect results"
-echo "  - *_NO_TE_overlap.bed: peaks with no TE overlap"
-echo "  - *_WITH_TE_overlap.bed: peaks with some TE overlap"
+echo "  - *_NO_TE_overlap.bed / .txt: peaks with no TE overlap"
+echo "  - *_WITH_TE_overlap.bed / .txt: peaks with some TE overlap"
