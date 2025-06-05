@@ -1261,13 +1261,21 @@ for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
     # Step 2: Intersect with TE BED file, include non-overlapping peaks (-wao)
     bedtools intersect -a $OUT_DIR/${base}.bed -b $TE_BED -wao > $OUT_DIR/${base}_TE_overlap_raw.txt
 
-    # Step 3: Extract peaks with NO TE overlap (overlap length == 0)
-    awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_NO_TE_overlap.bed
-    awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_NO_TE_overlap.txt  # New
+    # Step 3: Extract peaks with NO TE overlap (overlap length == 0) and add header
+    {
+      echo -e "Chr\tStart\tEnd\tPeakID\tTE_Chr\tTE_Start\tTE_End\tTE_Name\tTE_Score\tOverlap_bp"
+      awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt
+    } > $OUT_DIR/${base}_NO_TE_overlap.txt
 
-    # Step 4: Extract peaks WITH TE overlap (overlap length > 0)
+    awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_NO_TE_overlap.bed
+
+    # Step 4: Extract peaks WITH TE overlap (overlap length > 0) and add header
+    {
+      echo -e "Chr\tStart\tEnd\tPeakID\tTE_Chr\tTE_Start\tTE_End\tTE_Name\tTE_Score\tOverlap_bp"
+      awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt
+    } > $OUT_DIR/${base}_WITH_TE_overlap.txt
+
     awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_WITH_TE_overlap.bed
-    awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_WITH_TE_overlap.txt  # New
 done
 
 echo "Done. Output in $OUT_DIR includes:"
