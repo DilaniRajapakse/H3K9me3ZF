@@ -1247,39 +1247,65 @@ module load BEDTools/2.31.0-GCC-12.3.0
 # ==== SET PATHS ====
 ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
 OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/TE/TEwithorwithoutoverlap"
 mkdir -p $OUT_DIR
+
+# ==== STEP 0: Extract transcript ID → gene symbol from GTF ====
+MAP_TSV="$OUT_DIR/zebrafish_ensid_to_symbol.tsv"
+
+awk -F'\t' '$3 == "transcript" && $9 ~ /transcript_id/ && $9 ~ /gene_name/ {
+    match($9, /transcript_id "([^"]+)"/, tid)
+    match($9, /gene_name "([^"]+)"/, gname)
+    if (tid[1] && gname[1]) {
+        print tid[1] "\t" gname[1]
+    }
+}' "$GTF" | sort -u > "$MAP_TSV"
 
 # ==== PROCESS EACH 1kb & 5kb PEAK FILE ====
 for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
     base=$(basename $annfile .txt)
     echo "Processing $base..."
 
-    # Step 1: Convert HOMER annotation to BED (Chr, Start, End, PeakID)
-    awk 'NR > 1 {OFS="\t"; print $2, $3, $4, "peak"NR}' $annfile > $OUT_DIR/${base}.bed
+    # Step 1: Extract peakID → transcript ID from HOMER annotation
+    awk 'NR > 1 {print "peak"NR, $12}' "$annfile" > "$OUT_DIR/${base}_peak_to_transcript.tsv"
 
-    # Step 2: Intersect with TE BED file, include non-overlapping peaks (-wao)
-    bedtools intersect -a $OUT_DIR/${base}.bed -b $TE_BED -wao > $OUT_DIR/${base}_TE_overlap_raw.txt
+    # Step 2: Join with transcript ID → gene symbol from GTF
+    join -1 2 -2 1 <(sort -k2,2 "$OUT_DIR/${base}_peak_to_transcript.tsv") <(sort -k1,1 "$MAP_TSV") \
+        | awk '{print $2 "\t" $1 "\t" $3}' > "$OUT_DIR/${base}_peak_gene_map.tsv"
+    # Format: peakID    transcriptID    geneSymbol
 
-    # Step 3: Extract peaks with NO TE overlap (overlap length == 0) and add header
+    # Step 3: Convert HOMER to BED
+    awk 'NR > 1 {OFS="\t"; print $2, $3, $4, "peak"NR}' "$annfile" > "$OUT_DIR/${base}.bed"
+
+    # Step 4: Intersect with TE BED (include non-overlapping peaks)
+    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$TE_BED" -wao > "$OUT_DIR/${base}_TE_overlap_raw.txt"
+
+    # Step 5: Annotate intersect output with GeneID and GeneSymbol
+    awk '
+    BEGIN {
+        while ((getline < "'"$OUT_DIR/${base}_peak_gene_map.tsv"'") > 0) {
+            map[$1] = $2 "\t" $3
+        }
+    }
     {
-      echo -e "Chr\tStart\tEnd\tPeakID\tTE_Chr\tTE_Start\tTE_End\tTE_Name\tTE_Score\tOverlap_bp"
-      awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt
-    } > $OUT_DIR/${base}_NO_TE_overlap.txt
+        key = $4
+        gene = (key in map) ? map[key] : "NA\tNA"
+        print $0 "\t" gene
+    }' "$OUT_DIR/${base}_TE_overlap_raw.txt" > "$OUT_DIR/${base}_TE_overlap_with_genes.txt"
 
-    awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_NO_TE_overlap.bed
-
-    # Step 4: Extract peaks WITH TE overlap (overlap length > 0) and add header
+    # Step 6: Output WITH TE overlap
     {
-      echo -e "Chr\tStart\tEnd\tPeakID\tTE_Chr\tTE_Start\tTE_End\tTE_Name\tTE_Score\tOverlap_bp"
-      awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt
-    } > $OUT_DIR/${base}_WITH_TE_overlap.txt
+        echo -e "Chr\tStart\tEnd\tPeakID\tTE_Chr\tTE_Start\tTE_End\tTE_Name\tTE_Score\tOverlap_bp\tGeneID\tGeneSymbol"
+        awk '$10 > 0' "$OUT_DIR/${base}_TE_overlap_with_genes.txt"
+    } > "$OUT_DIR/${base}_WITH_TE_overlap.txt"
 
-    awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_WITH_TE_overlap.bed
+    # Step 7: Output NO TE overlap
+    {
+        echo -e "Chr\tStart\tEnd\tPeakID\tTE_Chr\tTE_Start\tTE_End\tTE_Name\tTE_Score\tOverlap_bp\tGeneID\tGeneSymbol"
+        awk '$10 == 0' "$OUT_DIR/${base}_TE_overlap_with_genes.txt"
+    } > "$OUT_DIR/${base}_NO_TE_overlap.txt"
+
 done
 
-echo "Done. Output in $OUT_DIR includes:"
-echo "  - BED: converted peaks"
-echo "  - *_TE_overlap_raw.txt: full intersect results"
-echo "  - *_NO_TE_overlap.bed / .txt: peaks with no TE overlap"
-echo "  - *_WITH_TE_overlap.bed / .txt: peaks with some TE overlap"
+echo "Done. Output saved to: $OUT_DIR"
