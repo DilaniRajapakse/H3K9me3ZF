@@ -1310,9 +1310,13 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #echo "Done. Output saved to: $OUT_DIR"
 
+##6.5.25 trying to get summary tables 
+module load BEDTools/2.31.0-GCC-12.3.0
+
+# ==== SET PATHS ====
 ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables"
 mkdir -p "$OUT_DIR"
 
 # ==== PROCESS EACH PEAK FILE ====
@@ -1370,8 +1374,9 @@ for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
         print "Chr", "Start", "End", "GeneID", "GeneSymbol", "GeneRegion_Classification", "TE_Overlap_Percent", "TE_Overlap_Bin", "Overlapping_TE_Names"
         for (k in coords) {
             ov = overlap_bp[k] + 0
-            len = coords[k]
-            pct = (ov > 0 && (coords[k] != "")) ? sprintf("%.2f", (ov / (split(len, a, "\t"), a[3] - a[2])) * 100) : "0.00"
+            split(coords[k], a, "\t")
+            len = a[3] - a[2]
+            pct = (len > 0) ? sprintf("%.2f", (ov / len) * 100) : "0.00"
             bin = (pct == 0) ? "0%" :
                   (pct <= 10) ? "<=10%" :
                   (pct <= 25) ? "<=25%" :
@@ -1388,6 +1393,7 @@ for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
 
     # Cleanup temporary files
     rm -f ${base}.bed ${base}_TEraw.txt ${base}_peak_gene_class.tsv
+
 done
 
 echo "Done. All summaries saved to: $OUT_DIR"
