@@ -1204,40 +1204,72 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #done
 
-##6.4.24 Making files that show peaks within 1kb and within 5kb of a TSS
-module load Homer/5.1-foss-2023a-R-4.3.2
-curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $OUTDIR/refann.gtf
-mkdir -p $OUTDIR/peaksnew/ann
+##6.4.24 Making files that show peaks within 1kb and within 5kb of a TSS (SUCCESSFUL)
+#module load Homer/5.1-foss-2023a-R-4.3.2
+#curl -s ftp://ftp.ensembl.org/pub/release-98/gtf/danio_rerio/Danio_rerio.GRCz11.98.gtf.gz | gunzip -c > $OUTDIR/refann.gtf
+#mkdir -p $OUTDIR/peaksnew/ann
 
 
- for infile in /scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/*final.bed
- do
-   base=$( basename ${infile} _final.bed)
-   annotatePeaks.pl $infile danRer11 -gtf $OUTDIR/refann.gtf > $OUTDIR/peaksnew/ann/${base}.maskann.txt
- done
+# for infile in /scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/*final.bed
+# do
+#   base=$( basename ${infile} _final.bed)
+#   annotatePeaks.pl $infile danRer11 -gtf $OUTDIR/refann.gtf > $OUTDIR/peaksnew/ann/${base}.maskann.txt
+# done
 
 ##Filter peaks within 1kb of TSS
- for infile in $OUTDIR/peaksnew/ann/*maskann.txt
- do
-   base=$(basename ${infile} .maskann.txt)
-   awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $OUTDIR/peaksnew/ann/${base}.1000bp_ann.txt
- done
+# for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+# do
+#   base=$(basename ${infile} .maskann.txt)
+#   awk -F'\t' 'sqrt($10*$10) <=1000' $infile > $OUTDIR/peaksnew/ann/${base}.1000bp_ann.txt
+# done
 ## Filter peaks greater than 1Kb of TSS
- for infile in $OUTDIR/peaksnew/ann/*maskann.txt
- do
-   base=$(basename ${infile} .maskann.txt)
-   awk -F'\t' 'sqrt($10*$10) >=1000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $OUTDIR/peaksnew/ann/${base}.MOREthan1000bp.bed
- done
+# for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+# do
+#   base=$(basename ${infile} .maskann.txt)
+#   awk -F'\t' 'sqrt($10*$10) >=1000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $OUTDIR/peaksnew/ann/${base}.MOREthan1000bp.bed
+# done
 
  ##Filter peaks within 5kb of TSS
- for infile in $OUTDIR/peaksnew/ann/*maskann.txt
- do
-   base=$(basename ${infile} .maskann.txt)
-   awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $OUTDIR/peaksnew/ann/${base}.5000bp_ann.txt
- done
+# for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+# do
+#   base=$(basename ${infile} .maskann.txt)
+#   awk -F'\t' 'sqrt($10*$10) <=5000' $infile > $OUTDIR/peaksnew/ann/${base}.5000bp_ann.txt
+# done
 ## Filter peaks greater than 5Kb of TSS
- for infile in $OUTDIR/peaksnew/ann/*maskann.txt
- do
-   base=$(basename ${infile} .maskann.txt)
-   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $OUTDIR/peaksnew/ann/${base}.MOREthan5000bp.bed
- done
+# for infile in $OUTDIR/peaksnew/ann/*maskann.txt
+# do
+#   base=$(basename ${infile} .maskann.txt)
+#   awk -F'\t' 'sqrt($10*$10) >=5000' $infile | awk '{print $2 "\t" $3 "\t" $4 }' > $OUTDIR/peaksnew/ann/${base}.MOREthan5000bp.bed
+# done
+
+##6.5.25 Trying to add in TE component
+module load BEDTools/2.31.0-GCC-12.3.0
+# ==== SET PATHS ====
+ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
+TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/TE"
+mkdir -p $OUT_DIR
+
+# ==== PROCESS EACH 1kb & 5kb PEAK FILE ====
+for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
+    base=$(basename $annfile .txt)
+    echo "Processing $base..."
+
+    # Step 1: Convert HOMER annotation to BED (Chr, Start, End, PeakID)
+    awk 'NR > 1 {OFS="\t"; print $2, $3, $4, "peak"NR}' $annfile > $OUT_DIR/${base}.bed
+
+    # Step 2: Intersect with TE BED file, include non-overlapping peaks (-wao)
+    bedtools intersect -a $OUT_DIR/${base}.bed -b $TE_BED -wao > $OUT_DIR/${base}_TE_overlap_raw.txt
+
+    # Step 3: Extract peaks with NO TE overlap (overlap length == 0)
+    awk '$NF == 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_NO_TE_overlap.bed
+
+    # Step 4: Extract peaks WITH TE overlap (overlap length > 0)
+    awk '$NF > 0' $OUT_DIR/${base}_TE_overlap_raw.txt > $OUT_DIR/${base}_WITH_TE_overlap.bed
+done
+
+echo "Done. Output in $OUT_DIR includes:"
+echo "  - BED: converted peaks"
+echo "  - *_TE_overlap_raw.txt: full intersect results"
+echo "  - *_NO_TE_overlap.bed: peaks with no TE overlap"
+echo "  - *_WITH_TE_overlap.bed: peaks with some TE overlap"
