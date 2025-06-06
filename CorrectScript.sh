@@ -1636,7 +1636,7 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 module load BEDTools/2.31.0-GCC-12.3.0
 BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 GTF="${BASEDIR}/refann.gtf"
-BEDDIR="${BASEDIR}/peaks/ann"
+BEDDIR="${BASEDIR}/peaksnew/ann"
 OUTDIR="${BASEDIR}/SummaryTables4"
 CLASSIFIED_DIR="${BASEDIR}/GTF_Classified1"
 
