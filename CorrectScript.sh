@@ -1311,13 +1311,109 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 #echo "Done. Output saved to: $OUT_DIR"
 
 ##6.5.25 trying to get summary tables 
+#module load BEDTools/2.31.0-GCC-12.3.0
+
+# ==== SET PATHS ====
+#ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
+#TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+#OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables"
+#mkdir -p "$OUT_DIR"
+
+# ==== PROCESS EACH PEAK FILE ====
+#for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
+#    base=$(basename "$annfile" .txt)
+#    echo "Processing $base"
+
+    # Generate temp BED with PeakID
+#    awk 'NR>1 {OFS="\t"; print $2, $3, $4, "peak"NR}' "$annfile" > ${base}.bed
+
+    # Extract PeakID to GeneID and GeneSymbol, and exon/intron classification
+#    awk -F'\t' '
+#    NR > 1 {
+#        peak = "peak"NR
+#        gene_id = $12
+#        gene_symbol = ($17 == "") ? "NA" : $17
+#        exon = ($9 ~ /exon/) ? 1 : 0
+#        intron = ($9 ~ /intron/) ? 1 : 0
+#        class = (exon && !intron) ? "exon_only" :
+#                (!exon && intron) ? "intron_only" :
+#                (exon && intron) ? "exon+intron" : "unclassified"
+#        print peak "\t" gene_id "\t" gene_symbol "\t" class
+#    }' "$annfile" > ${base}_peak_gene_class.tsv
+
+    # Intersect with TE BED (include non-overlapping)
+#    bedtools intersect -a ${base}.bed -b "$TE_BED" -wao > ${base}_TEraw.txt
+
+    # Summarize TE overlap: percent, bin, and TE names
+#    awk -v mapfile="${base}_peak_gene_class.tsv" '
+#    BEGIN {
+#        OFS = "\t"
+#        while ((getline < mapfile) > 0) {
+#            peak = $1
+#            gene_id[peak] = $2
+#            gene_sym[peak] = $3
+#            region_class[peak] = $4
+#        }
+#    }
+#    {
+#        peak = $4
+#        key = $1":"$2":"$3":"peak
+#        peak_len = $3 - $2
+#        te_name = ($8 != ".") ? $8 : ""
+#        overlap_bp[key] += $NF
+#        if (te_name != "") {
+#            if (!seen[key, te_name]) {
+#                seen[key, te_name] = 1
+#                te_names[key] = (te_names[key] == "") ? te_name : te_names[key] ";" te_name
+#            }
+#        }
+#        coords[key] = $1"\t"$2"\t"$3
+#        pid[key] = peak
+#    }
+#    END {
+#        print "Chr", "Start", "End", "GeneID", "GeneSymbol", "GeneRegion_Classification", "TE_Overlap_Percent", "TE_Overlap_Bin", "Overlapping_TE_Names"
+#        for (k in coords) {
+#            ov = overlap_bp[k] + 0
+#            split(coords[k], a, "\t")
+#            len = a[3] - a[2]
+#            pct = (len > 0) ? sprintf("%.2f", (ov / len) * 100) : "0.00"
+#            bin = (pct == 0) ? "0%" :
+#                  (pct <= 10) ? "<=10%" :
+#                  (pct <= 25) ? "<=25%" :
+#                  (pct <= 50) ? "<=50%" :
+#                  (pct <= 75) ? "<=75%" :
+#                  (pct < 100) ? "<100%" : "100%"
+#            gene = gene_id[pid[k]]
+#            sym = gene_sym[pid[k]]
+#            cls = region_class[pid[k]]
+#            testr = (te_names[k] != "") ? te_names[k] : "None"
+#            print coords[k], gene, sym, cls, pct, bin, testr
+#        }
+#    }' ${base}_TEraw.txt > "$OUT_DIR/${base}_TE_summary.tsv"
+
+    # Cleanup temporary files
+#    rm -f ${base}.bed ${base}_TEraw.txt ${base}_peak_gene_class.tsv
+
+#done
+
+#echo "Done. All summaries saved to: $OUT_DIR"
+
+##6.25 trying to get gene symbols
 module load BEDTools/2.31.0-GCC-12.3.0
 
 # ==== SET PATHS ====
 ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
 TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables"
+GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables1"
 mkdir -p "$OUT_DIR"
+
+# Create ENSDARG to GeneSymbol map from GTF
+awk -F'\t' '$3 == "gene" && $9 ~ /gene_id/ && $9 ~ /gene_name/ {
+    match($9, /gene_id "([^\"]+)"/, gid)
+    match($9, /gene_name "([^\"]+)"/, gname)
+    if (gid[1] && gname[1]) print gid[1] "\t" gname[1]
+}' "$GTF" > /tmp/ensid_to_symbol.tsv
 
 # ==== PROCESS EACH PEAK FILE ====
 for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
@@ -1327,32 +1423,32 @@ for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
     # Generate temp BED with PeakID
     awk 'NR>1 {OFS="\t"; print $2, $3, $4, "peak"NR}' "$annfile" > ${base}.bed
 
-    # Extract PeakID to GeneID and GeneSymbol, and exon/intron classification
-    awk -F'\t' '
-    NR > 1 {
+    # Extract PeakID to GeneID and exon/intron classification
+    awk -F'\t' 'NR > 1 {
         peak = "peak"NR
         gene_id = $12
-        gene_symbol = ($17 == "") ? "NA" : $17
         exon = ($9 ~ /exon/) ? 1 : 0
         intron = ($9 ~ /intron/) ? 1 : 0
         class = (exon && !intron) ? "exon_only" :
                 (!exon && intron) ? "intron_only" :
                 (exon && intron) ? "exon+intron" : "unclassified"
-        print peak "\t" gene_id "\t" gene_symbol "\t" class
+        print peak, gene_id, class
     }' "$annfile" > ${base}_peak_gene_class.tsv
 
     # Intersect with TE BED (include non-overlapping)
     bedtools intersect -a ${base}.bed -b "$TE_BED" -wao > ${base}_TEraw.txt
 
-    # Summarize TE overlap: percent, bin, and TE names
-    awk -v mapfile="${base}_peak_gene_class.tsv" '
+    # Summarize TE overlap: percent, bin, and TE names with gene symbol mapping
+    awk -v mapfile="${base}_peak_gene_class.tsv" -v genesym="/tmp/ensid_to_symbol.tsv" '
     BEGIN {
         OFS = "\t"
         while ((getline < mapfile) > 0) {
             peak = $1
             gene_id[peak] = $2
-            gene_sym[peak] = $3
-            region_class[peak] = $4
+            region_class[peak] = $3
+        }
+        while ((getline < genesym) > 0) {
+            id2sym[$1] = $2
         }
     }
     {
@@ -1383,11 +1479,11 @@ for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
                   (pct <= 50) ? "<=50%" :
                   (pct <= 75) ? "<=75%" :
                   (pct < 100) ? "<100%" : "100%"
-            gene = gene_id[pid[k]]
-            sym = gene_sym[pid[k]]
+            gid = gene_id[pid[k]]
+            sym = (gid in id2sym) ? id2sym[gid] : "NA"
             cls = region_class[pid[k]]
             testr = (te_names[k] != "") ? te_names[k] : "None"
-            print coords[k], gene, sym, cls, pct, bin, testr
+            print coords[k], gid, sym, cls, pct, bin, testr
         }
     }' ${base}_TEraw.txt > "$OUT_DIR/${base}_TE_summary.tsv"
 
@@ -1395,5 +1491,7 @@ for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
     rm -f ${base}.bed ${base}_TEraw.txt ${base}_peak_gene_class.tsv
 
 done
+
+rm /tmp/ensid_to_symbol.tsv
 
 echo "Done. All summaries saved to: $OUT_DIR"
