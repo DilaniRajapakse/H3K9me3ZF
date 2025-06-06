@@ -1496,26 +1496,138 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #echo "Done. All summaries saved to: $OUT_DIR"
 
-##6.6.25 Trying to get 0%TE H3K9me3 peaks at genes 
+##6.6.25 Trying to get 0%TE H3K9me3 peaks at genes. This did not work properly gave a list with a bunch of TEs 
 # Directory where your TE summary tables are stored
-SUMMARY_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables1"
+#SUMMARY_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables1"
 
 # Output file
-OUTPUT="${SUMMARY_DIR}/genes_with_H3K9me3_noTE_all.tsv"
+#OUTPUT="${SUMMARY_DIR}/genes_with_H3K9me3_noTE_all.tsv"
 
 # Header
-echo -e "GeneID\tGeneSymbol\tTimepoint_Window" > "$OUTPUT"
+#echo -e "GeneID\tGeneSymbol\tTimepoint_Window" > "$OUTPUT"
 
 # Loop through each summary file
-for file in "$SUMMARY_DIR"/*_TE_summary.tsv; do
+#for file in "$SUMMARY_DIR"/*_TE_summary.tsv; do
     # Extract just the filename, e.g., 3hpf_K9.5000bp_ann_TE_summary.tsv
-    fname=$(basename "$file")
+#    fname=$(basename "$file")
 
     # Get source label like: 3hpf_K9_5000bp
-    label=$(echo "$fname" | sed -E 's/_TE_summary.tsv$//' | sed -E 's/\.ann/_ann/' | tr '.' '_')
+#    label=$(echo "$fname" | sed -E 's/_TE_summary.tsv$//' | sed -E 's/\.ann/_ann/' | tr '.' '_')
 
     # Extract GeneID, GeneSymbol, and Source label for rows with 0% overlap
-    awk -v lbl="$label" -F'\t' 'NR > 1 && $7 == "0.00" { print $4 "\t" $5 "\t" lbl }' "$file"
-done | sort -u >> "$OUTPUT"
+#    awk -v lbl="$label" -F'\t' 'NR > 1 && $7 == "0.00" { print $4 "\t" $5 "\t" lbl }' "$file"
+#done | sort -u >> "$OUTPUT"
 
-echo "Done: Combined output saved to $OUTPUT"
+#echo "Done: Combined output saved to $OUTPUT"
+
+##6.6.25 Trying to get files that will show the right genes with H3K9me3 enrichment
+module load BEDTools/2.31.0-GCC-12.3.0
+
+ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
+TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables3"
+mkdir -p "$OUT_DIR"
+
+# === Build gene symbol map from GTF ===
+awk -F'\t' '$3 == "gene" && $9 ~ /gene_id/ && $9 ~ /gene_name/ {
+    match($9, /gene_id "([^"]+)"/, gid)
+    match($9, /gene_name "([^"]+)"/, gname)
+    if (gid[1] && gname[1]) print gid[1] "\t" gname[1]
+}' "$GTF" > /tmp/ensid_to_symbol.tsv
+
+# === Loop through peak annotation files ===
+for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
+    base=$(basename "$annfile" .txt)
+    echo "Processing $base..."
+
+    # Step 1: BED from HOMER peaks with peak ID
+    awk 'NR > 1 {OFS="\t"; print $2, $3, $4, "peak"NR}' "$annfile" > ${base}.bed
+
+    # Step 2: extract PeakID → GeneID + Exon/Intron Class
+    awk -F'\t' '
+    NR > 1 {
+        peak = "peak"NR
+        gene_id = $12
+        exon = ($9 ~ /exon/) ? 1 : 0
+        intron = ($9 ~ /intron/) ? 1 : 0
+        class = (exon && !intron) ? "exon_only" :
+                (!exon && intron) ? "intron_only" :
+                (exon && intron) ? "exon+intron" : "unclassified"
+        print peak, gene_id, class
+    }' "$annfile" > ${base}_peak_to_gene.tsv
+
+    # Step 3: bedtools intersect with TEs (with -wao)
+    bedtools intersect -a ${base}.bed -b "$TE_BED" -wao > ${base}_TEraw.txt
+
+    # Step 4: Aggregate per GENE
+    awk -v pk2gene="${base}_peak_to_gene.tsv" -v symtab="/tmp/ensid_to_symbol.tsv" '
+    BEGIN {
+        OFS="\t"
+        while ((getline < pk2gene) > 0) {
+            peak = $1; gid = $2; class = $3
+            peak2gene[peak] = gid
+            peakclass[peak] = class
+        }
+        while ((getline < symtab) > 0) {
+            id2sym[$1] = $2
+        }
+    }
+    {
+        peak = $4
+        gid = peak2gene[peak]
+        if (gid == "") next
+        class = peakclass[peak]
+        geneclass[gid][class] = 1
+        genepeaklen[gid][peak] = $3 - $2
+        geneoverlap[gid][peak] += $NF
+        if ($8 != "." && $8 != "") {
+            if (!seen[gid, $8]) {
+                seen[gid, $8] = 1
+                tenames[gid] = (tenames[gid] == "") ? $8 : tenames[gid] ";" $8
+            }
+        }
+    }
+    END {
+        print "GeneID", "GeneSymbol", "GeneRegion_Classification", "TE_Overlap_Percent", "TE_Overlap_Bin", "Overlapping_TE_Names"
+        for (gid in genepeaklen) {
+            # Aggregate classification
+            exon = intron = 0
+            for (cls in geneclass[gid]) {
+                if (cls ~ /exon/) exon = 1
+                if (cls ~ /intron/) intron = 1
+            }
+            region_class = (exon && intron) ? "exon+intron" :
+                           (exon && !intron) ? "exon_only" :
+                           (!exon && intron) ? "intron_only" : "unclassified"
+
+            # Max % overlap across all peaks
+            max_pct = 0
+            for (pk in genepeaklen[gid]) {
+                ov = geneoverlap[gid][pk] + 0
+                len = genepeaklen[gid][pk]
+                pct = (len > 0) ? (ov / len) * 100 : 0
+                if (pct > max_pct) max_pct = pct
+            }
+
+            # Bin
+            bin = (max_pct == 0) ? "0%" :
+                  (max_pct <= 10) ? "<=10%" :
+                  (max_pct <= 25) ? "<=25%" :
+                  (max_pct <= 50) ? "<=50%" :
+                  (max_pct <= 75) ? "<=75%" :
+                  (max_pct < 100) ? "<100%" : "100%"
+
+            sym = (gid in id2sym) ? id2sym[gid] : "NA"
+            tename = (tenames[gid] != "") ? tenames[gid] : "None"
+
+            printf "%s\t%s\t%s\t%.2f\t%s\t%s\n", gid, sym, region_class, max_pct, bin, tename
+        }
+    }' ${base}_TEraw.txt > "$OUT_DIR/${base}_TE_byGene.tsv"
+
+    # Cleanup
+    rm -f ${base}.bed ${base}_TEraw.txt ${base}_peak_to_gene.tsv
+done
+
+rm /tmp/ensid_to_symbol.tsv
+echo "All gene-level summaries saved to: $OUT_DIR"
