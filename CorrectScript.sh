@@ -1520,114 +1520,172 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 #echo "Done: Combined output saved to $OUTPUT"
 
-##6.6.25 Trying to get files that will show the right genes with H3K9me3 enrichment
-module load BEDTools/2.31.0-GCC-12.3.0
+##6.6.25 Trying to get files that will show the right genes with H3K9me3 enrichment. Homer seems to be misannotating introns, exons, etc. Since slitrk4 that we know is exon enriched, doesn't come up in this output
+#module load BEDTools/2.31.0-GCC-12.3.0
 
-ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
-TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
-GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables3"
-mkdir -p "$OUT_DIR"
+#ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
+#TE_BED="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaks/TEann_35_0.1filt.bed"
+#GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+#OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/SummaryTables3"
+#mkdir -p "$OUT_DIR"
 
 # === Build gene symbol map from GTF ===
-awk -F'\t' '$3 == "gene" && $9 ~ /gene_id/ && $9 ~ /gene_name/ {
-    match($9, /gene_id "([^"]+)"/, gid)
-    match($9, /gene_name "([^"]+)"/, gname)
-    if (gid[1] && gname[1]) print gid[1] "\t" gname[1]
-}' "$GTF" > /tmp/ensid_to_symbol.tsv
+#awk -F'\t' '$3 == "gene" && $9 ~ /gene_id/ && $9 ~ /gene_name/ {
+#    match($9, /gene_id "([^"]+)"/, gid)
+#    match($9, /gene_name "([^"]+)"/, gname)
+#    if (gid[1] && gname[1]) print gid[1] "\t" gname[1]
+#}' "$GTF" > /tmp/ensid_to_symbol.tsv
 
 # === Loop through peak annotation files ===
-for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
-    base=$(basename "$annfile" .txt)
-    echo "Processing $base..."
+#for annfile in $ANN_DIR/*.1000bp_ann.txt $ANN_DIR/*.5000bp_ann.txt; do
+#    base=$(basename "$annfile" .txt)
+#    echo "Processing $base..."
 
     # Step 1: BED from HOMER peaks with peak ID
-    awk 'NR > 1 {OFS="\t"; print $2, $3, $4, "peak"NR}' "$annfile" > ${base}.bed
+#    awk 'NR > 1 {OFS="\t"; print $2, $3, $4, "peak"NR}' "$annfile" > ${base}.bed
 
     # Step 2: extract PeakID → GeneID + Exon/Intron Class
-    awk -F'\t' '
-    NR > 1 {
-        peak = "peak"NR
-        gene_id = $12
-        exon = ($9 ~ /exon/) ? 1 : 0
-        intron = ($9 ~ /intron/) ? 1 : 0
-        class = (exon && !intron) ? "exon_only" :
-                (!exon && intron) ? "intron_only" :
-                (exon && intron) ? "exon+intron" : "unclassified"
-        print peak, gene_id, class
-    }' "$annfile" > ${base}_peak_to_gene.tsv
+#    awk -F'\t' '
+#    NR > 1 {
+#        peak = "peak"NR
+#        gene_id = $12
+#        exon = ($9 ~ /exon/) ? 1 : 0
+#        intron = ($9 ~ /intron/) ? 1 : 0
+#        class = (exon && !intron) ? "exon_only" :
+#                (!exon && intron) ? "intron_only" :
+#                (exon && intron) ? "exon+intron" : "unclassified"
+#        print peak, gene_id, class
+#    }' "$annfile" > ${base}_peak_to_gene.tsv
 
     # Step 3: bedtools intersect with TEs (with -wao)
-    bedtools intersect -a ${base}.bed -b "$TE_BED" -wao > ${base}_TEraw.txt
+#    bedtools intersect -a ${base}.bed -b "$TE_BED" -wao > ${base}_TEraw.txt
 
     # Step 4: Aggregate per GENE
-    awk -v pk2gene="${base}_peak_to_gene.tsv" -v symtab="/tmp/ensid_to_symbol.tsv" '
-    BEGIN {
-        OFS="\t"
-        while ((getline < pk2gene) > 0) {
-            peak = $1; gid = $2; class = $3
-            peak2gene[peak] = gid
-            peakclass[peak] = class
-        }
-        while ((getline < symtab) > 0) {
-            id2sym[$1] = $2
-        }
-    }
-    {
-        peak = $4
-        gid = peak2gene[peak]
-        if (gid == "") next
-        class = peakclass[peak]
-        geneclass[gid][class] = 1
-        genepeaklen[gid][peak] = $3 - $2
-        geneoverlap[gid][peak] += $NF
-        if ($8 != "." && $8 != "") {
-            if (!seen[gid, $8]) {
-                seen[gid, $8] = 1
-                tenames[gid] = (tenames[gid] == "") ? $8 : tenames[gid] ";" $8
-            }
-        }
-    }
-    END {
-        print "GeneID", "GeneSymbol", "GeneRegion_Classification", "TE_Overlap_Percent", "TE_Overlap_Bin", "Overlapping_TE_Names"
-        for (gid in genepeaklen) {
+#    awk -v pk2gene="${base}_peak_to_gene.tsv" -v symtab="/tmp/ensid_to_symbol.tsv" '
+#    BEGIN {
+#        OFS="\t"
+#        while ((getline < pk2gene) > 0) {
+#            peak = $1; gid = $2; class = $3
+#            peak2gene[peak] = gid
+#            peakclass[peak] = class
+#        }
+#        while ((getline < symtab) > 0) {
+#            id2sym[$1] = $2
+#        }
+#    }
+#    {
+#        peak = $4
+#        gid = peak2gene[peak]
+#        if (gid == "") next
+#        class = peakclass[peak]
+#        geneclass[gid][class] = 1
+#        genepeaklen[gid][peak] = $3 - $2
+#        geneoverlap[gid][peak] += $NF
+#        if ($8 != "." && $8 != "") {
+#            if (!seen[gid, $8]) {
+#                seen[gid, $8] = 1
+#                tenames[gid] = (tenames[gid] == "") ? $8 : tenames[gid] ";" $8
+#            }
+#        }
+#    }
+#    END {
+#        print "GeneID", "GeneSymbol", "GeneRegion_Classification", "TE_Overlap_Percent", "TE_Overlap_Bin", "Overlapping_TE_Names"
+#        for (gid in genepeaklen) {
             # Aggregate classification
-            exon = intron = 0
-            for (cls in geneclass[gid]) {
-                if (cls ~ /exon/) exon = 1
-                if (cls ~ /intron/) intron = 1
-            }
-            region_class = (exon && intron) ? "exon+intron" :
-                           (exon && !intron) ? "exon_only" :
-                           (!exon && intron) ? "intron_only" : "unclassified"
+#            exon = intron = 0
+#            for (cls in geneclass[gid]) {
+#                if (cls ~ /exon/) exon = 1
+#                if (cls ~ /intron/) intron = 1
+#            }
+#            region_class = (exon && intron) ? "exon+intron" :
+#                           (exon && !intron) ? "exon_only" :
+#                           (!exon && intron) ? "intron_only" : "unclassified"
 
-            # Max % overlap across all peaks
-            max_pct = 0
-            for (pk in genepeaklen[gid]) {
-                ov = geneoverlap[gid][pk] + 0
-                len = genepeaklen[gid][pk]
-                pct = (len > 0) ? (ov / len) * 100 : 0
-                if (pct > max_pct) max_pct = pct
-            }
+#            # Max % overlap across all peaks
+#            max_pct = 0
+#            for (pk in genepeaklen[gid]) {
+#                ov = geneoverlap[gid][pk] + 0
+#                len = genepeaklen[gid][pk]
+#                pct = (len > 0) ? (ov / len) * 100 : 0
+#                if (pct > max_pct) max_pct = pct
+#            }
 
             # Bin
-            bin = (max_pct == 0) ? "0%" :
-                  (max_pct <= 10) ? "<=10%" :
-                  (max_pct <= 25) ? "<=25%" :
-                  (max_pct <= 50) ? "<=50%" :
-                  (max_pct <= 75) ? "<=75%" :
-                  (max_pct < 100) ? "<100%" : "100%"
+#            bin = (max_pct == 0) ? "0%" :
+#                  (max_pct <= 10) ? "<=10%" :
+#                  (max_pct <= 25) ? "<=25%" :
+#                  (max_pct <= 50) ? "<=50%" :
+#                  (max_pct <= 75) ? "<=75%" :
+#                  (max_pct < 100) ? "<100%" : "100%"
 
-            sym = (gid in id2sym) ? id2sym[gid] : "NA"
-            tename = (tenames[gid] != "") ? tenames[gid] : "None"
+#            sym = (gid in id2sym) ? id2sym[gid] : "NA"
+#            tename = (tenames[gid] != "") ? tenames[gid] : "None"
 
-            printf "%s\t%s\t%s\t%.2f\t%s\t%s\n", gid, sym, region_class, max_pct, bin, tename
-        }
-    }' ${base}_TEraw.txt > "$OUT_DIR/${base}_TE_byGene.tsv"
+#            printf "%s\t%s\t%s\t%.2f\t%s\t%s\n", gid, sym, region_class, max_pct, bin, tename
+#        }
+#    }' ${base}_TEraw.txt > "$OUT_DIR/${base}_TE_byGene.tsv"
 
     # Cleanup
-    rm -f ${base}.bed ${base}_TEraw.txt ${base}_peak_to_gene.tsv
+#    rm -f ${base}.bed ${base}_TEraw.txt ${base}_peak_to_gene.tsv
+#done
+
+#rm /tmp/ensid_to_symbol.tsv
+#echo "All gene-level summaries saved to: $OUT_DIR"
+
+##6.6.25 This is to reclassify the peaks with the gtf file that is good
+module load BEDTools/2.31.0-GCC-12.3.0
+
+# ==== SET PATHS ====
+GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
+ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
+OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/GTF_Classified"
+mkdir -p "$OUT_DIR"
+
+# Step 1: Extract exons from GTF
+awk '$3 == "exon" { 
+    match($9, /gene_id "([^"]+)"/, gid);
+    match($9, /gene_name "([^"]+)"/, gname);
+    if (gid[1] && gname[1]) 
+        print $1, $4-1, $5, gid[1], ".", $7, gname[1];
+}' OFS='\t' "$GTF" > "$OUT_DIR/all_exons.bed"
+
+# Step 2: Create intron regions by subtracting exons from full gene span
+awk '$3 == "gene" {
+    match($9, /gene_id "([^"]+)"/, gid);
+    match($9, /gene_name "([^"]+)"/, gname);
+    if (gid[1] && gname[1])
+        print $1, $4-1, $5, gid[1], ".", $7, gname[1];
+}' OFS='\t' "$GTF" > "$OUT_DIR/all_genes.bed"
+
+bedtools subtract -a "$OUT_DIR/all_genes.bed" -b "$OUT_DIR/all_exons.bed" > "$OUT_DIR/all_introns.bed"
+
+# Step 3: For each peak annotation file, classify overlaps
+for ann in $ANN_DIR/*.txt; do
+    base=$(basename "$ann" .txt)
+    echo "Processing $base..."
+
+    # Convert HOMER to BED with peak ID
+    awk 'NR>1 {print $2, $3, $4, "peak"NR, ".", "."}' OFS='\t' "$ann" > "$OUT_DIR/${base}.bed"
+
+    # Intersect with exons
+    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_exons.bed" -wa -wb > "$OUT_DIR/${base}_exon_hits.txt"
+
+    # Intersect with introns
+    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_introns.bed" -wa -wb > "$OUT_DIR/${base}_intron_hits.txt"
+
+    # Classification
+    awk '
+    BEGIN { OFS="\t" }
+    FNR==NR { exon[$1":"$2":"$3]++; next }
+    { intron[$1":"$2":"$3]++ }
+    END {
+        for (e in exon) class[e] = "exon_only"
+        for (i in intron) {
+            if (class[i] == "exon_only") class[i] = "exon+intron"
+            else class[i] = "intron_only"
+        }
+        for (k in class) print k, class[k]
+    }' "$OUT_DIR/${base}_exon_hits.txt" "$OUT_DIR/${base}_intron_hits.txt" > "$OUT_DIR/${base}_peak_classification.tsv"
 done
 
-rm /tmp/ensid_to_symbol.tsv
-echo "All gene-level summaries saved to: $OUT_DIR"
+echo "Done classifying peaks as exon/intron/both. Output saved in $OUT_DIR"
