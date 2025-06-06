@@ -1634,84 +1634,50 @@ BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
 
 ##6.6.25 This is to reclassify the peaks with the gtf file that is good
  module load BEDTools/2.31.0-GCC-12.3.0
+module load BEDTools/2.31.0-GCC-12.3.0
 
-# ==== Set Paths ====
-GTF="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/refann.gtf"
-ANN_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/ann"
-OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/GTF_Classified"
+# Define directories and files
+BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+PEAKDIR="$BASEDIR/peaksnew"
+GTF="$BASEDIR/refann.gtf"
+CLASSIFIED_DIR="$PEAKDIR/GTF_Classified"
+SUMMARY_DIR="$PEAKDIR/SummaryTables4"
 
-mkdir -p "$OUT_DIR"
+mkdir -p "$CLASSIFIED_DIR"
+mkdir -p "$SUMMARY_DIR"
 
-# ==== Step 1: Extract annotation BEDs from GTF ====
+# Extract exons, introns, and gene annotations from the GTF
+awk '$3 == "exon"' "$GTF" | awk '{OFS="\t"; match($0, /gene_id \"([^\"]+)\"/, a); match($0, /gene_name \"([^\"]+)\"/, b); print $1, $4-1, $5, a[1], b[1], $7}' > "$CLASSIFIED_DIR/all_exons.bed"
+bedtools sort -i "$CLASSIFIED_DIR/all_exons.bed" > "$CLASSIFIED_DIR/all_exons.sorted.bed"
 
-# Exons
-awk '$3 == "exon" {
-    match($9, /gene_id "([^"]+)"/, gid);
-    match($9, /gene_name "([^"]+)"/, gname);
-    if (gid[1] && gname[1])
-        print $1, $4-1, $5, gid[1], ".", $7, gname[1];
-}' OFS="\t" "$GTF" > "$OUT_DIR/all_exons.bed"
+# Create gene-level annotations
+awk '$3 == "gene"' "$GTF" | awk '{OFS="\t"; match($0, /gene_id \"([^\"]+)\"/, a); match($0, /gene_name \"([^\"]+)\"/, b); print $1, $4-1, $5, a[1], b[1], $7}' > "$CLASSIFIED_DIR/all_genes.bed"
+bedtools sort -i "$CLASSIFIED_DIR/all_genes.bed" > "$CLASSIFIED_DIR/all_genes.sorted.bed"
 
-# Genes (to get full span)
-awk '$3 == "gene" {
-    match($9, /gene_id "([^"]+)"/, gid);
-    match($9, /gene_name "([^"]+)"/, gname);
-    if (gid[1] && gname[1])
-        print $1, $4-1, $5, gid[1], ".", $7, gname[1];
-}' OFS="\t" "$GTF" > "$OUT_DIR/all_genes.bed"
+# Create intron annotations
+bedtools subtract -a "$CLASSIFIED_DIR/all_genes.sorted.bed" -b "$CLASSIFIED_DIR/all_exons.sorted.bed" > "$CLASSIFIED_DIR/all_introns.bed"
+bedtools sort -i "$CLASSIFIED_DIR/all_introns.bed" > "$CLASSIFIED_DIR/all_introns.sorted.bed"
 
-# Introns = genes - exons
-bedtools subtract -a "$OUT_DIR/all_genes.bed" -b "$OUT_DIR/all_exons.bed" > "$OUT_DIR/all_introns.bed"
+# Loop over each BED file of peaks
+for BEDFILE in "$PEAKDIR"/*ann.bed; do
+    BASENAME=$(basename "$BEDFILE" .bed)
 
-# ==== Step 2: Classify Peaks ====
-for ann in "$ANN_DIR"/*.txt; do
-    base=$(basename "$ann" .txt)
-    echo "Processing $base..."
+    # Identify peaks overlapping exons and introns
+    bedtools intersect -a "$BEDFILE" -b "$CLASSIFIED_DIR/all_exons.sorted.bed" -u > "$CLASSIFIED_DIR/${BASENAME}_has_exon.bed"
+    bedtools intersect -a "$BEDFILE" -b "$CLASSIFIED_DIR/all_introns.sorted.bed" -u > "$CLASSIFIED_DIR/${BASENAME}_has_intron.bed"
 
-    # Convert HOMER-style annotation to BED
-    awk 'NR > 1 {print $2, $3, $4, $1, ".", "."}' OFS="\t" "$ann" > "$OUT_DIR/${base}.bed"
+    # Classify peaks
+    bedtools intersect -a "$CLASSIFIED_DIR/${BASENAME}_has_exon.bed" -b "$CLASSIFIED_DIR/${BASENAME}_has_intron.bed" -u > "$CLASSIFIED_DIR/${BASENAME}_both.bed"
+    bedtools intersect -a "$CLASSIFIED_DIR/${BASENAME}_has_exon.bed" -b "$CLASSIFIED_DIR/${BASENAME}_both.bed" -v > "$CLASSIFIED_DIR/${BASENAME}_exon_only.bed"
+    bedtools intersect -a "$CLASSIFIED_DIR/${BASENAME}_has_intron.bed" -b "$CLASSIFIED_DIR/${BASENAME}_both.bed" -v > "$CLASSIFIED_DIR/${BASENAME}_intron_only.bed"
 
-    # Intersect with exons and introns
-    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_exons.bed" -wa | cut -f1-3 | sort | uniq > "$OUT_DIR/${base}_has_exon.bed"
-    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_introns.bed" -wa | cut -f1-3 | sort | uniq > "$OUT_DIR/${base}_has_intron.bed"
-
-    # Classify based on overlap
-    awk '{
-        key = $1":"$2":"$3;
-        exon[key] = 1;
-    }' "$OUT_DIR/${base}_has_exon.bed"
-
-    awk '{
-        key = $1":"$2":"$3;
-        intron[key] = 1;
-    } END {
-        for (k in exon) {
-            if (intron[k]) {
-                class[k] = "exon+intron";
-            } else {
-                class[k] = "exon_only";
-            }
-        }
-        for (k in intron) {
-            if (!(k in exon)) {
-                class[k] = "intron_only";
-            }
-        }
-        for (k in class) {
-            split(k, coords, ":");
-            print coords[1], coords[2], coords[3], class[k];
-        }
-    }' "$OUT_DIR/${base}_has_intron.bed" > "$OUT_DIR/${base}_peak_classification_raw.tsv"
-
-    # Add gene ID and gene symbol
-    GENES="$OUT_DIR/all_genes.bed"
+    # Annotate classification
     {
-        echo -e "chr\tstart\tend\tclassification\tgene_id\tgene_symbol"
-        bedtools intersect -a "$OUT_DIR/${base}_peak_classification_raw.tsv" -b "$GENES" -wa -wb | \
-            awk 'BEGIN{OFS="\t"} {print $1, $2, $3, $4, $8, $9}'
-    } > "$OUT_DIR/${base}_peak_classification.tsv"
+      echo -e "Chrom\tStart\tEnd\tGeneID\tGeneSymbol\tStrand\tClassification"
+      awk '{OFS="\t"; print $0, "both"}' "$CLASSIFIED_DIR/${BASENAME}_both.bed"
+      awk '{OFS="\t"; print $0, "exon_only"}' "$CLASSIFIED_DIR/${BASENAME}_exon_only.bed"
+      awk '{OFS="\t"; print $0, "intron_only"}' "$CLASSIFIED_DIR/${BASENAME}_intron_only.bed"
+    } > "$SUMMARY_DIR/${BASENAME}_peak_classification.tsv"
 
-    echo "Done: $OUT_DIR/${base}_peak_classification.tsv"
 done
 
-echo "All peak classification complete."
