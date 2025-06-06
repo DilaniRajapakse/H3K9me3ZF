@@ -1642,14 +1642,14 @@ OUT_DIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published/peaksnew/GTF_Class
 mkdir -p "$OUT_DIR"
 
 # Step 1: Extract exons from GTF
-awk '$3 == "exon" { 
+awk '$3 == "exon" {
     match($9, /gene_id "([^"]+)"/, gid);
     match($9, /gene_name "([^"]+)"/, gname);
-    if (gid[1] && gname[1]) 
+    if (gid[1] && gname[1])
         print $1, $4-1, $5, gid[1], ".", $7, gname[1];
 }' OFS='\t' "$GTF" > "$OUT_DIR/all_exons.bed"
 
-# Step 2: Create intron regions by subtracting exons from full gene span
+# Step 2: Extract gene spans
 awk '$3 == "gene" {
     match($9, /gene_id "([^"]+)"/, gid);
     match($9, /gene_name "([^"]+)"/, gname);
@@ -1657,35 +1657,37 @@ awk '$3 == "gene" {
         print $1, $4-1, $5, gid[1], ".", $7, gname[1];
 }' OFS='\t' "$GTF" > "$OUT_DIR/all_genes.bed"
 
+# Step 3: Subtract exons from gene spans to define introns
 bedtools subtract -a "$OUT_DIR/all_genes.bed" -b "$OUT_DIR/all_exons.bed" > "$OUT_DIR/all_introns.bed"
 
-# Step 3: For each peak annotation file, classify overlaps
-for ann in $ANN_DIR/*.txt; do
+# Step 4: Classify peaks
+for ann in "$ANN_DIR"/*.txt; do
     base=$(basename "$ann" .txt)
-    echo "Processing $base..."
+    echo "Processing $base"
 
-    # Convert HOMER to BED with peak ID
+    # Create BED file from HOMER annotation
     awk 'NR>1 {print $2, $3, $4, "peak"NR, ".", "."}' OFS='\t' "$ann" > "$OUT_DIR/${base}.bed"
 
-    # Intersect with exons
-    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_exons.bed" -wa -wb > "$OUT_DIR/${base}_exon_hits.txt"
-
-    # Intersect with introns
-    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_introns.bed" -wa -wb > "$OUT_DIR/${base}_intron_hits.txt"
+    # Intersect with exons and introns
+    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_exons.bed" -wa -u > "$OUT_DIR/${base}_exon_hits.txt"
+    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_introns.bed" -wa -u > "$OUT_DIR/${base}_intron_hits.txt"
 
     # Classification
     awk '
     BEGIN { OFS="\t" }
-    FNR==NR { exon[$1":"$2":"$3]++; next }
-    { intron[$1":"$2":"$3]++ }
+    FNR==NR { exon[$1,$2,$3] = 1; next }
+    { intron[$1,$2,$3] = 1 }
     END {
-        for (e in exon) class[e] = "exon_only"
-        for (i in intron) {
-            if (class[i] == "exon_only") class[i] = "exon+intron"
-            else class[i] = "intron_only"
+        for (key in exon) class[key] = "exon_only"
+        for (key in intron) {
+            if (class[key] == "exon_only") class[key] = "exon+intron"
+            else class[key] = "intron_only"
         }
-        for (k in class) print k, class[k]
+        for (key in class) {
+            split(key, parts, SUBSEP)
+            print parts[1], parts[2], parts[3], class[key]
+        }
     }' "$OUT_DIR/${base}_exon_hits.txt" "$OUT_DIR/${base}_intron_hits.txt" > "$OUT_DIR/${base}_peak_classification.tsv"
 done
 
-echo "Done classifying peaks as exon/intron/both. Output saved in $OUT_DIR"
+echo "Done classifying peaks. Output saved to $OUT_DIR"
