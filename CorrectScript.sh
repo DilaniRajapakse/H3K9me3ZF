@@ -1643,51 +1643,49 @@ mkdir -p "$OUT_DIR"
 
 # Step 1: Extract exons from GTF
 awk '$3 == "exon" {
-    match($9, /gene_id "([^"]+)"/, gid);
-    match($9, /gene_name "([^"]+)"/, gname);
-    if (gid[1] && gname[1])
-        print $1, $4-1, $5, gid[1], ".", $7, gname[1];
+    split($9, a, ";");
+    for (i in a) {
+        if (a[i] ~ /gene_id/) gsub(/.*"|"$/, "", a[i]); gene_id=a[i];
+        if (a[i] ~ /gene_name/) gsub(/.*"|"$/, "", a[i]); gene_name=a[i];
+    }
+    print $1, $4 - 1, $5, gene_id, ".", $7, gene_name;
 }' OFS='\t' "$GTF" > "$OUT_DIR/all_exons.bed"
 
-# Step 2: Extract gene spans
+# Step 2: Extract genes from GTF
 awk '$3 == "gene" {
-    match($9, /gene_id "([^"]+)"/, gid);
-    match($9, /gene_name "([^"]+)"/, gname);
-    if (gid[1] && gname[1])
-        print $1, $4-1, $5, gid[1], ".", $7, gname[1];
+    split($9, a, ";");
+    for (i in a) {
+        if (a[i] ~ /gene_id/) gsub(/.*"|"$/, "", a[i]); gene_id=a[i];
+        if (a[i] ~ /gene_name/) gsub(/.*"|"$/, "", a[i]); gene_name=a[i];
+    }
+    print $1, $4 - 1, $5, gene_id, ".", $7, gene_name;
 }' OFS='\t' "$GTF" > "$OUT_DIR/all_genes.bed"
 
-# Step 3: Subtract exons from gene spans to define introns
+# Step 3: Define introns as gene spans minus exons
 bedtools subtract -a "$OUT_DIR/all_genes.bed" -b "$OUT_DIR/all_exons.bed" > "$OUT_DIR/all_introns.bed"
 
-# Step 4: Classify peaks
-for ann in "$ANN_DIR"/*.txt; do
+# Step 4: Classify peak overlaps
+for ann in $ANN_DIR/*.txt; do
     base=$(basename "$ann" .txt)
-    echo "Processing $base"
+    echo "Processing $base..."
 
-    # Create BED file from HOMER annotation
-    awk 'NR>1 {print $2, $3, $4, "peak"NR, ".", "."}' OFS='\t' "$ann" > "$OUT_DIR/${base}.bed"
+    awk 'NR>1 {print $2, $3, $4, $1, ".", $6}' OFS='\t' "$ann" > "$OUT_DIR/${base}.bed"
 
-    # Intersect with exons and introns
-    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_exons.bed" -wa -u > "$OUT_DIR/${base}_exon_hits.txt"
-    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_introns.bed" -wa -u > "$OUT_DIR/${base}_intron_hits.txt"
+    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_exons.bed" -wa -wb > "$OUT_DIR/${base}_exon_hits.txt"
+    bedtools intersect -a "$OUT_DIR/${base}.bed" -b "$OUT_DIR/all_introns.bed" -wa -wb > "$OUT_DIR/${base}_intron_hits.txt"
 
-    # Classification
     awk '
     BEGIN { OFS="\t" }
-    FNR==NR { exon[$1,$2,$3] = 1; next }
-    { intron[$1,$2,$3] = 1 }
+    FNR==NR { exons[$1":"$2":"$3] = 1; next }
+    { introns[$1":"$2":"$3] = 1 }
     END {
-        for (key in exon) class[key] = "exon_only"
-        for (key in intron) {
-            if (class[key] == "exon_only") class[key] = "exon+intron"
-            else class[key] = "intron_only"
+        for (k in exons) class[k] = "exon_only"
+        for (k in introns) {
+            if (class[k] == "exon_only") class[k] = "exon+intron"
+            else class[k] = "intron_only"
         }
-        for (key in class) {
-            split(key, parts, SUBSEP)
-            print parts[1], parts[2], parts[3], class[key]
-        }
+        for (k in class) print k, class[k]
     }' "$OUT_DIR/${base}_exon_hits.txt" "$OUT_DIR/${base}_intron_hits.txt" > "$OUT_DIR/${base}_peak_classification.tsv"
 done
 
-echo "Done classifying peaks. Output saved to $OUT_DIR"
+echo "Peak classification complete! Results in $OUT_DIR"
