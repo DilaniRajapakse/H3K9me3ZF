@@ -27,6 +27,7 @@ then
 fi
 cd $OUTPUT_DIR
 
+if [ ! -d $TEMP_DIR ]
 then
     mkdir -p $TEMP_DIR
 fi
