@@ -3,6 +3,9 @@
 ##set expected directories for base script, input, and output
 BASE_DIR="/scratch/dr27977"
 INPUT_DIR="${BASE_DIR}/H3K9me3_Zebrafish/CUTnRUN_published/peaks"
+
+##  /scratch/dr27977/OUTPUT/ANNOTATE
+
 OUTPUT_DIR="${BASE_DIR}/OUTPUT/ANNOTATE"
 
 ##create directories if they do not currently exist

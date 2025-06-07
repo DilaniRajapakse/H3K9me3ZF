@@ -13,4 +13,8 @@
 SCRIPT_DIR="/home/dr27977/H3K9me3ZF/scripts"
 BASE_DIR="/scratch/dr27977/"
 
-sh ${SCRIPT_DIR}/create_annotations.sh
+## create maskann.txt annotation files in /scratch/dr27977/OUTPUT/ANNOTATE
+# sh ${SCRIPT_DIR}/create_annotations.sh
+
+##
+sh ${SCRIPT_DIR}/gene_names.sh
