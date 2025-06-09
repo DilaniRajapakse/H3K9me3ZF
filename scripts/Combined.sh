@@ -55,7 +55,7 @@ echo "Step 4: Annotate each *bp_ann.tsv file with TE info..."
 
 for file in "$ANN_DIR"/*.1000bp_ann.txt "$ANN_DIR"/*.5000bp_ann.txt; do
     [[ -f "$file" ]] || continue
-    base=$(basename "$file" .tsv)
+    base=$(basename "$file" .txt)
     outfile="$OUTDIR/${base}_withTE.tsv"
 
     echo "→ Annotating $base"
