@@ -15,17 +15,18 @@ OUTPUT_DIR="/scratch/dr27977/OUTPUT/ANNOTATE/Clean"
 mkdir -p "$OUTPUT_DIR"
 
 # Process each annotation file ending with 1000bp_ann.txt or 5000bp_ann.txt
-for file in "$BASEDIR"/*bp_ann.txt; do
+for file in "$BASE_DIR"/*bp_ann.txt; do
     [ -f "$file" ] || continue
     base=$(basename "$file" .txt)
     outfile="$OUTPUT_DIR/${base}.tsv"
 
     echo "Formatting $file → $outfile"
 
-    # Replace all spaces with tabs only between columns (preserving tab structure)
-    # and ensure consistent formatting
-    awk 'BEGIN {OFS="\t"} {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19}' "$file" > "$outfile"
+    # Format to proper TSV using 19 columns
+    awk 'BEGIN {OFS="\t"} {
+        print $1,$2,$3,$4,$5,$6,$7,$8,$9,
+              $10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+    }' "$file" > "$outfile"
 done
 
-echo "All files reformatted and saved to: $OUTPUT_DIR"
-
+echo "✅ All files reformatted and saved to: $OUTPUT_DIR"
