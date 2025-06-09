@@ -29,4 +29,4 @@ for file in "$BASE_DIR"/*bp_ann.txt; do
     }' "$file" > "$outfile"
 done
 
-echo "✅ All files reformatted and saved to: $OUTPUT_DIR"
+echo "All files reformatted and saved to: $OUTPUT_DIR"
