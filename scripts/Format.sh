@@ -14,16 +14,16 @@ BASE_DIR="/scratch/dr27977/OUTPUT/ANNOTATE"
 OUTPUT_DIR="/scratch/dr27977/OUTPUT/ANNOTATE/Clean"
 mkdir -p "$OUTPUT_DIR"
 
-# Process each annotation file ending with 1000bp_ann.txt or 5000bp_ann.txt
-for file in "$BASE_DIR"/*bp_ann.txt; do
+# Correct pattern based on actual filenames
+for file in "$BASE_DIR"/*.1000bp_ann.txt "$BASE_DIR"/*.5000bp_ann.txt; do
     [ -f "$file" ] || continue
     base=$(basename "$file" .txt)
     outfile="$OUTPUT_DIR/${base}.tsv"
 
     echo "Formatting $file → $outfile"
 
-    # Format to proper TSV using 19 columns
-    awk 'BEGIN {OFS="\t"} {
+    # Format and write only rows with 19+ fields
+    awk 'BEGIN {OFS="\t"} NF >= 19 {
         print $1,$2,$3,$4,$5,$6,$7,$8,$9,
               $10,$11,$12,$13,$14,$15,$16,$17,$18,$19
     }' "$file" > "$outfile"
