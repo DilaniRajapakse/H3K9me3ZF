@@ -29,31 +29,3 @@ done
 
 echo "All files reformatted and saved to: $OUTPUT_DIR"
 
-
-# Input GTF file
-GTF="/scratch/dr27977/OUTPUT/ANNOTATE/refann.gtf"
-OUT="/scratch/dr27977/OUTPUT/ANNOTATE/Clean/refann_formatted.tsv"
-
-# Output header
-echo -e "Chr\tSource\tFeature\tStart\tEnd\tScore\tStrand\tFrame\tGeneID\tTranscriptID\tGeneName\tGeneBiotype\tTranscriptBiotype" > "$OUT"
-
-# Extract and format the GTF
-awk -F'\t' '
-BEGIN { OFS="\t" }
-{
-    # Extract attributes
-    match($9, /gene_id "([^"]+)"/, gid)
-    match($9, /transcript_id "([^"]+)"/, tid)
-    match($9, /gene_name "([^"]+)"/, gname)
-    match($9, /gene_biotype "([^"]+)"/, gtype)
-    match($9, /transcript_biotype "([^"]+)"/, ttype)
-
-    print $1, $2, $3, $4, $5, $6, $7, $8,
-          (gid[1] ? gid[1] : "NA"),
-          (tid[1] ? tid[1] : "NA"),
-          (gname[1] ? gname[1] : "NA"),
-          (gtype[1] ? gtype[1] : "NA"),
-          (ttype[1] ? ttype[1] : "NA")
-}' "$GTF" >> "$OUT"
-
-echo "GTF formatted to: $OUT"
