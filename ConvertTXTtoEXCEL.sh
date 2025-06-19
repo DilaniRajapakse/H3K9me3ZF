@@ -10,23 +10,34 @@
 #SBATCH --mail-user=dr27977@uga.edu                         # Where to send mail (replace cbergman with your myid)
 #SBATCH --mail-type=ALL                                     # Mail events (BEGIN, END, FAIL, ALL)
 
-INPUT_DIR="/scratch/dr27977/OUTPUT/ANNOTATE"
-OUTPUT_DIR="$INPUT_DIR/csv_outputs"
-mkdir -p "$OUTPUT_DIR"
+# Load required modules
+module load BEDTools/2.31.0-GCC-12.3.0
+module load Homer/5.1-foss-2023a-R-4.3.2
 
-module load pandas/1.0.5-foss-2022a-Python-3.10.4
+# Define paths
+BASEDIR="/scratch/dr27977/H3K9me3_Zebrafish/CUTnRUN_published"
+GTF="$BASEDIR/refann.gtf"
+TE_BED="$BASEDIR/peaks/TEann_35_0.1filt.sorted.bed"
+OUTDIR="$BASEDIR/peaks/tss_noTE_output"
+mkdir -p "$OUTDIR/annotated_genes"
 
-# Find all matching txt files and convert to CSV
-find "$INPUT_DIR" -type f \( -name "*K9.1000bp_ann.txt" -o -name "*K9.5000bp_ann.txt" \) | while read txtfile; do
-    base=$(basename "$txtfile" .txt)
-    outfile="$OUTPUT_DIR/${base}.csv"
+# Loop through 1kb annotated peak files
+for annfile in "$BASEDIR"/peaks/ann/*1000bp_ann.txt; do
+    base=$(basename "$annfile" .1000bp_ann.txt)
 
-    echo "Converting: $txtfile --> $outfile"
+    # Convert to BED format
+    awk -F'\t' '{print $2"\t"$3"\t"$4"\t"$1}' "$annfile" > "$OUTDIR/${base}_1kb_TSS_peaks.bed"
 
-    python3 - <<EOF
-import pandas as pd
-df = pd.read_csv("$txtfile", sep='\t', header=None, dtype=str)
-df.to_csv("$outfile", index=False, header=False)
-EOF
+    # Remove TE-overlapping peaks
+    bedtools intersect -v -a "$OUTDIR/${base}_1kb_TSS_peaks.bed" -b "$TE_BED" > "$OUTDIR/${base}_noTE.bed"
 
+    # Annotate TE-free peaks
+    annotatePeaks.pl "$OUTDIR/${base}_noTE.bed" danRer11 -gtf "$GTF" > "$OUTDIR/annotated_genes/${base}_noTE_annot.txt"
+
+    # Extract Gene Symbol and Ensembl ID (unique)
+    awk 'NR > 1 {print $2 "\t" $12}' "$OUTDIR/annotated_genes/${base}_noTE_annot.txt" | sort -u > "$OUTDIR/annotated_genes/${base}_noTE_genes.tsv"
+
+    # Report how many genes had TE-free peaks near TSS
+    count=$(wc -l < "$OUTDIR/annotated_genes/${base}_noTE_genes.tsv")
+    echo "$base: $count genes with TE-free H3K9me3 peaks within 1kb of TSS"
 done
