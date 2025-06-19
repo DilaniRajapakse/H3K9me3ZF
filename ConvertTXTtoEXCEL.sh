@@ -10,27 +10,23 @@
 #SBATCH --mail-user=dr27977@uga.edu                         # Where to send mail (replace cbergman with your myid)
 #SBATCH --mail-type=ALL                                     # Mail events (BEGIN, END, FAIL, ALL)
 
-# Define input and output directories
 INPUT_DIR="/scratch/dr27977/OUTPUT/ANNOTATE"
-OUTPUT_DIR="$INPUT_DIR/excel_outputs"
+OUTPUT_DIR="$INPUT_DIR/csv_outputs"
 mkdir -p "$OUTPUT_DIR"
 
-# Load python if required by your system (uncomment if needed)
- module load pandas/1.0.5-foss-2022a-Python-3.10.4
- module load openpyxl/3.1.2-GCCcore-13.2.0
+module load pandas/1.0.5-foss-2022a-Python-3.10.4
 
-
-# Find all matching txt files and convert to Excel
+# Find all matching txt files and convert to CSV
 find "$INPUT_DIR" -type f \( -name "*K9.1000bp_ann.txt" -o -name "*K9.5000bp_ann.txt" \) | while read txtfile; do
     base=$(basename "$txtfile" .txt)
-    outfile="$OUTPUT_DIR/${base}.xlsx"
+    outfile="$OUTPUT_DIR/${base}.csv"
 
     echo "Converting: $txtfile --> $outfile"
 
     python3 - <<EOF
 import pandas as pd
 df = pd.read_csv("$txtfile", sep='\t', header=None, dtype=str)
-df.to_excel("$outfile", index=False, header=False)
+df.to_csv("$outfile", index=False, header=False)
 EOF
 
 done
