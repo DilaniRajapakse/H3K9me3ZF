@@ -16,7 +16,7 @@ OUTPUT_DIR="$INPUT_DIR/excel_outputs"
 mkdir -p "$OUTPUT_DIR"
 
 # Load python if required by your system (uncomment if needed)
- module load Python/3.10.4-GCCcore-11.3.0
+ module load pandas/1.0.5-foss-2022a-Python-3.10.4
 
 
 # Find all matching txt files and convert to Excel
